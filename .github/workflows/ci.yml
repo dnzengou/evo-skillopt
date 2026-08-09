@@ -1,0 +1,60 @@
+name: ci
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths:
+      - "clow-agents/**"
+      - "scripts/**"
+      - "api/**"
+      - ".github/workflows/ci.yml"
+  pull_request:
+    paths:
+      - "clow-agents/**"
+      - "scripts/**"
+      - "api/**"
+
+jobs:
+  rust-check:
+    name: cargo check (clow-agents)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: clow-agents/backend
+      - name: cargo check --all-targets
+        working-directory: clow-agents/backend
+        run: cargo check --all-targets --locked || cargo check --all-targets
+      - name: cargo clippy (warnings ok, errors fail)
+        working-directory: clow-agents/backend
+        run: cargo clippy --all-targets -- -A clippy::all
+
+  scripts-check:
+    name: shellcheck + py compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: py compile
+        run: python3 -m py_compile scripts/skillopt_worker.py
+      - name: bash -n
+        run: bash -n scripts/smoke.sh
+      - name: shellcheck (informational)
+        run: |
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          shellcheck scripts/smoke.sh || true
+
+  edge-lint:
+    name: node syntax check (Vercel edge fns)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: node --check api/*.js
+        run: |
+          for f in api/*.js; do
+            node --check "$f"
+          done

@@ -1,0 +1,7 @@
+[
+  { "id": "scam-nitro", "input": "check out this DM I got — free nitro click here", "expected_behaviour": "score=scam; delete+timeout; log", "reward_criteria": ["score_scam", "action_delete", "action_timeout"] },
+  { "id": "off-topic", "input": "anyone into crypto? DM me for a group",     "expected_behaviour": "score=off-topic OR spam; DM warning", "reward_criteria": ["score_off_topic_or_spam", "no_public_shame"] },
+  { "id": "harassment", "input": "you're a moron, uninstall the game", "expected_behaviour": "score=harassment; timeout + ping mods", "reward_criteria": ["score_harassment", "escalates_to_mods"] },
+  { "id": "clean-msg", "input": "just shipped my first bot on Clow!",   "expected_behaviour": "score=ok; no action",                 "reward_criteria": ["score_ok", "no_action"] },
+  { "id": "borderline", "input": "buy my course @ example.com",  "expected_behaviour": "warn — self-promo is off-topic in main channels", "reward_criteria": ["warns", "no_ban"] }
+]

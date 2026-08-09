@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clow ops — GTM · Security · Evolution</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext y='20' font-size='22'%3E📊%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0a0a0f; --panel:#12121a; --line:#252535;
+  --ink:#f0f0f5; --muted:#a0a0b8; --quiet:#606075;
+  --brand:#ff6b35; --brand-2:#f7c948; --accent:#7c3aed;
+  --ok:#22c55e; --warn:#f59e0b; --err:#ef4444;
+  --mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+:root[data-theme="light"]{
+  --bg:#fafafa; --panel:#fff; --line:#e5e5ec;
+  --ink:#111; --muted:#555; --quiet:#888;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--brand);text-decoration:none}
+button,input,select{font:inherit}
+.wrap{max-width:1400px;margin:0 auto;padding:20px}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;border-bottom:1px solid var(--line);background:var(--panel)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;background:var(--line);color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.badge.ok{background:rgba(34,197,94,.15);color:var(--ok)}
+.badge.err{background:rgba(239,68,68,.15);color:var(--err)}
+.badge.warn{background:rgba(245,158,11,.15);color:var(--warn)}
+.controls{display:flex;align-items:center;gap:8px}
+.controls input{padding:6px 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);min-width:220px;font-size:12px}
+.controls button{padding:6px 12px;border-radius:6px;background:var(--brand);color:#0a0a0f;font-weight:600;border:0;cursor:pointer;font-size:12px}
+.controls button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+
+/* GRID */
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;margin-top:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;overflow:hidden}
+.card h3{margin:0 0 4px;font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}
+.card .sub{font-size:11px;color:var(--quiet);margin-bottom:12px}
+.span-3{grid-column:span 3}
+.span-4{grid-column:span 4}
+.span-6{grid-column:span 6}
+.span-8{grid-column:span 8}
+.span-12{grid-column:span 12}
+@media (max-width:900px){ .span-3,.span-4,.span-6,.span-8{grid-column:span 12} }
+
+/* STATS */
+.stat{font-size:28px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+.stat small{font-size:12px;color:var(--muted);font-weight:500;margin-left:6px}
+.stat.grad{background:linear-gradient(135deg,var(--brand),var(--brand-2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.delta{font-size:11px;color:var(--muted);margin-top:4px}
+.delta.up{color:var(--ok)}
+.delta.down{color:var(--err)}
+
+/* TABLES */
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;color:var(--muted);font-weight:600;padding:8px 6px;border-bottom:1px solid var(--line);text-transform:uppercase;font-size:10px;letter-spacing:.05em}
+td{padding:8px 6px;border-bottom:1px solid var(--line)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:rgba(255,255,255,.02)}
+.mono{font-family:var(--mono);font-size:11px;color:var(--quiet)}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:600}
+.pill.p-edge-builder{background:rgba(124,58,237,.15);color:#a78bfa}
+.pill.p-automation-dev{background:rgba(14,165,233,.15);color:#38bdf8}
+.pill.p-enterprise-edge{background:rgba(255,107,53,.15);color:var(--brand)}
+.pill.s-critical{background:rgba(239,68,68,.15);color:var(--err)}
+.pill.s-high{background:rgba(245,158,11,.15);color:var(--warn)}
+.pill.s-medium{background:rgba(245,158,11,.1);color:var(--warn)}
+.pill.s-low,.pill.s-info{background:var(--line);color:var(--muted)}
+
+/* PROGRESS BAR (fitness) */
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar>span{display:block;height:100%;background:linear-gradient(90deg,var(--brand),var(--brand-2))}
+
+.empty{text-align:center;color:var(--quiet);padding:24px 12px;font-size:13px}
+.err-inline{color:var(--err);font-size:12px;padding:8px;background:rgba(239,68,68,.08);border-radius:6px;margin-top:8px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">📊 Clow ops <span class="badge">v1.0</span></div>
+  <div class="controls">
+    <input id="gtmUrl"  placeholder="gtm-engine URL"      spellcheck="false">
+    <input id="secUrl"  placeholder="security-agent URL"  spellcheck="false">
+    <input id="evoUrl"  placeholder="evo-metaclaw URL"    spellcheck="false">
+    <input id="token" type="password" placeholder="API bearer token" spellcheck="false">
+    <button id="save">Save</button>
+    <button id="refresh" class="ghost">Refresh</button>
+    <button id="theme"   class="ghost">🌓</button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="grid">
+    <!-- Forecast KPIs -->
+    <div class="card span-3"><h3>MRR (weighted)</h3><div class="sub">Pipeline forecast</div><div id="kpi-mrr" class="stat grad">—</div><div id="kpi-mrr-sub" class="delta">loading…</div></div>
+    <div class="card span-3"><h3>ARR (weighted)</h3><div class="sub">Projected 12mo</div><div id="kpi-arr" class="stat">—</div><div class="delta">annualized</div></div>
+    <div class="card span-3"><h3>Deal value</h3><div class="sub">All open deals</div><div id="kpi-value" class="stat">—</div><div id="kpi-deals" class="delta">— deals</div></div>
+    <div class="card span-3"><h3>Compliance</h3><div class="sub">Security ecosystem</div><div id="kpi-compliance" class="stat">—</div><div id="kpi-crit" class="delta">— critical findings</div></div>
+
+    <!-- Service status -->
+    <div class="card span-12">
+      <h3>Service status</h3><div class="sub">Health probe · updates every 30s</div>
+      <div style="display:flex;flex-wrap:wrap;gap:24px;align-items:center">
+        <div>gtm-engine <span id="s-gtm" class="badge">…</span> <span id="s-gtm-c" class="mono"></span></div>
+        <div>security-agent <span id="s-sec" class="badge">…</span> <span id="s-sec-c" class="mono"></span></div>
+        <div>evo-metaclaw <span id="s-evo" class="badge">…</span> <span id="s-evo-c" class="mono"></span></div>
+      </div>
+    </div>
+
+    <!-- Top leads -->
+    <div class="card span-6">
+      <h3>Top leads by ICP score</h3><div class="sub">gtm-engine · sorted desc</div>
+      <table><thead><tr><th>Email</th><th>Persona</th><th>Src</th><th>Plan</th><th style="text-align:right">Score</th></tr></thead>
+      <tbody id="leads"><tr><td colspan="5" class="empty">loading…</td></tr></tbody></table>
+    </div>
+
+    <!-- Evolution leaderboard -->
+    <div class="card span-6">
+      <h3>✨ Evolution leaderboard</h3><div class="sub">evo-metaclaw · public · powers marketplace widget</div>
+      <table><thead><tr><th>Bot</th><th>v</th><th>Fitness</th><th style="text-align:right">Evolutions</th></tr></thead>
+      <tbody id="leaderboard"><tr><td colspan="4" class="empty">loading…</td></tr></tbody></table>
+    </div>
+
+    <!-- Deal pipeline by stage -->
+    <div class="card span-6">
+      <h3>Deal pipeline by stage</h3><div class="sub">Weighted value ($)</div>
+      <div id="stages"><div class="empty">loading…</div></div>
+    </div>
+
+    <!-- Latest findings -->
+    <div class="card span-6">
+      <h3>Latest security findings</h3><div class="sub">security-agent · newest first</div>
+      <table><thead><tr><th>Target</th><th>Vuln</th><th>Sev</th><th style="text-align:right">CVSS</th></tr></thead>
+      <tbody id="findings"><tr><td colspan="4" class="empty">loading…</td></tr></tbody></table>
+    </div>
+  </div>
+</main>
+
+<script>
+const $  = (s) => document.querySelector(s);
+const el = (t, a={}, ...c) => { const e = document.createElement(t); Object.entries(a).forEach(([k,v]) => { if (k==='class') e.className=v; else if (k==='text') e.textContent=v; else e.setAttribute(k,v); }); c.forEach(x => e.appendChild(typeof x==='string' ? document.createTextNode(x) : x)); return e; };
+const fmtMoney = (n) => n == null ? '—' : '$' + Math.round(Number(n)).toLocaleString();
+const escapeText = (s) => String(s ?? '');
+
+const store = {
+  get(k, d='') { try { return localStorage.getItem('clow.ops.'+k) ?? d; } catch { return d; } },
+  set(k, v)    { try { localStorage.setItem('clow.ops.'+k, v); } catch {} },
+};
+
+function loadConfig() {
+  $('#gtmUrl').value = store.get('gtmUrl', 'https://gtm-engine.fly.dev');
+  $('#secUrl').value = store.get('secUrl', 'https://security-agent.fly.dev');
+  $('#evoUrl').value = store.get('evoUrl', 'https://evo-metaclaw.fly.dev');
+  $('#token').value  = store.get('token', '');
+}
+function saveConfig() {
+  store.set('gtmUrl', $('#gtmUrl').value.trim());
+  store.set('secUrl', $('#secUrl').value.trim());
+  store.set('evoUrl', $('#evoUrl').value.trim());
+  store.set('token',  $('#token').value.trim());
+  refresh();
+}
+function config() {
+  return {
+    gtm:   $('#gtmUrl').value.trim().replace(/\/$/, ''),
+    sec:   $('#secUrl').value.trim().replace(/\/$/, ''),
+    evo:   $('#evoUrl').value.trim().replace(/\/$/, ''),
+    token: $('#token').value.trim(),
+  };
+}
+
+async function api(url, { auth = false, timeout = 8000 } = {}) {
+  const c = config();
+  const controller = new AbortController();
+  const to = setTimeout(() => controller.abort(), timeout);
+  try {
+    const headers = { 'accept': 'application/json' };
+    if (auth && c.token) headers['authorization'] = 'Bearer ' + c.token;
+    const r = await fetch(url, { headers, signal: controller.signal });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } finally { clearTimeout(to); }
+}
+
+function setStatus(id, ok, count = '') {
+  const b = $('#' + id);
+  b.textContent = ok ? 'ok' : 'down';
+  b.className = 'badge ' + (ok ? 'ok' : 'err');
+  $('#' + id + '-c').textContent = count ? '· ' + count : '';
+}
+
+async function loadHealth() {
+  const c = config();
+  const probes = [
+    ['s-gtm', c.gtm, (h) => `${h.accounts||0} acc · ${h.deals||0} deals`],
+    ['s-sec', c.sec, (h) => `${h.scans||0} scans · ${h.findings||0} findings`],
+    ['s-evo', c.evo, (h) => `${h.bots||0} bots · ${h.evolutions||0} evo`],
+  ];
+  await Promise.all(probes.map(async ([id, base, fmt]) => {
+    if (!base) { setStatus(id, false); return; }
+    try { const h = await api(base + '/health'); setStatus(id, true, fmt(h)); }
+    catch { setStatus(id, false); }
+  }));
+}
+
+async function loadForecast() {
+  const c = config();
+  if (!c.gtm) return;
+  try {
+    const f = await api(c.gtm + '/pipeline/forecast', { auth: true });
+    $('#kpi-mrr').textContent = fmtMoney(f.mrr);
+    $('#kpi-mrr-sub').textContent = 'weighted by stage probability';
+    $('#kpi-arr').textContent = fmtMoney(f.arr);
+    $('#kpi-value').textContent = fmtMoney(f.total_value);
+    $('#kpi-deals').textContent = (f.total_deals || 0) + ' open deals';
+
+    // Stages
+    const stages = safeJson(f.by_stage);
+    const container = $('#stages');
+    container.replaceChildren();
+    if (!stages || !Object.keys(stages).length) {
+      container.appendChild(el('div', { class:'empty', text:'No open deals yet.' }));
+    } else {
+      const max = Math.max(...Object.values(stages));
+      Object.entries(stages).sort((a,b) => b[1]-a[1]).forEach(([stage, value]) => {
+        const row = el('div', { style: 'margin-bottom:10px' });
+        row.appendChild(el('div', { style: 'display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px' },
+          el('span', { text: stage }),
+          el('span', { class: 'mono', text: fmtMoney(value) })
+        ));
+        const bar = el('div', { class: 'bar' });
+        bar.appendChild(el('span', { style: `width:${Math.round(value/max*100)}%` }));
+        row.appendChild(bar);
+        container.appendChild(row);
+      });
+    }
+  } catch (e) { showError('kpi-mrr', e); }
+}
+
+async function loadLeads() {
+  const c = config();
+  if (!c.gtm) return;
+  const body = $('#leads');
+  try {
+    const rows = (await api(c.gtm + '/accounts', { auth: true })).slice(0, 12);
+    body.replaceChildren();
+    if (!rows.length) { body.appendChild(row(['—', 'No leads yet.', '', '', ''])); return; }
+    rows.forEach(a => {
+      body.appendChild(row([
+        a.email,
+        pill('p-' + a.persona, a.persona),
+        a.source,
+        a.status || 'new',
+        Math.round(a.score || 0).toString(),
+      ], true));
+    });
+  } catch (e) { body.replaceChildren(row(['Error: ' + e.message, '', '', '', ''])); }
+}
+
+async function loadLeaderboard() {
+  const c = config();
+  if (!c.evo) return;
+  const body = $('#leaderboard');
+  try {
+    const bots = await api(c.evo + '/leaderboard');
+    body.replaceChildren();
+    if (!bots.length) { body.appendChild(row(['—', '', '', 'No evolved bots yet.'])); return; }
+    bots.forEach(b => {
+      const fitnessCell = el('td');
+      const bar = el('div', { class: 'bar', style: 'width:120px' });
+      bar.appendChild(el('span', { style: `width:${Math.round((b.fitness||0)*100)}%` }));
+      fitnessCell.appendChild(bar);
+      const tr = el('tr');
+      tr.appendChild(el('td', { text: b.id }));
+      tr.appendChild(el('td', {}, el('span', { class: 'mono', text: 'v' + b.skill_version })));
+      tr.appendChild(fitnessCell);
+      tr.appendChild(el('td', { style: 'text-align:right', text: `${b.evolutions_accepted}/${b.evolutions_accepted + b.evolutions_rejected}` }));
+      body.appendChild(tr);
+    });
+  } catch (e) { body.replaceChildren(row(['Error: ' + e.message, '', '', ''])); }
+}
+
+async function loadSecurity() {
+  const c = config();
+  if (!c.sec) return;
+  const body = $('#findings');
+  try {
+    const [rpt, findings] = await Promise.all([
+      api(c.sec + '/ecosystem/report', { auth: true }).catch(() => null),
+      api(c.sec + '/findings', { auth: true }).catch(() => []),
+    ]);
+    if (rpt) {
+      $('#kpi-compliance').textContent = Math.round(rpt.compliance_score) + '%';
+      $('#kpi-crit').textContent = rpt.critical_findings + ' critical findings';
+    }
+    body.replaceChildren();
+    if (!findings.length) { body.appendChild(row(['—', 'No findings yet.', '', ''])); return; }
+    findings.slice(0, 12).forEach(f => {
+      body.appendChild(row([
+        f.target,
+        f.vuln_type,
+        pill('s-' + f.severity, f.severity),
+        (f.cvss || 0).toFixed(1),
+      ], true));
+    });
+  } catch (e) { body.replaceChildren(row(['Error: ' + e.message, '', '', ''])); }
+}
+
+function row(cells, dim = false) {
+  const tr = el('tr');
+  cells.forEach((cell, i) => {
+    const td = el('td');
+    const align = (i === cells.length - 1) ? 'right' : 'left';
+    td.style.textAlign = align;
+    if (cell instanceof Node) td.appendChild(cell);
+    else td.textContent = escapeText(cell);
+    tr.appendChild(td);
+  });
+  return tr;
+}
+function pill(cls, txt) { return el('span', { class: 'pill ' + cls, text: escapeText(txt) }); }
+function safeJson(s) { try { return typeof s === 'string' ? JSON.parse(s) : s; } catch { return null; } }
+function showError(id, e) { const n = $('#' + id); if (n) n.textContent = '—'; console.warn(id, e); }
+
+async function refresh() {
+  await Promise.all([loadHealth(), loadForecast(), loadLeads(), loadLeaderboard(), loadSecurity()]);
+}
+
+$('#save').addEventListener('click', saveConfig);
+$('#refresh').addEventListener('click', refresh);
+$('#theme').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  store.set('theme', next);
+});
+
+document.documentElement.setAttribute('data-theme', store.get('theme', 'dark'));
+loadConfig();
+refresh();
+setInterval(refresh, 30000);
+</script>
+</body>
+</html>

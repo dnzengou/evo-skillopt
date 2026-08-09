@@ -1,0 +1,6 @@
+[
+  { "id": "collect-basic", "input": "yesterday: auth refactor. today: SAML. no blockers.", "expected_behaviour": "parse 3 sections; no invented content", "reward_criteria": ["has_yesterday", "has_today", "has_blockers", "no_fabrication"] },
+  { "id": "collect-blocker", "input": "shipped X. today Y. blocked by legal.", "expected_behaviour": "captures blocker; schedules follow-up next day", "reward_criteria": ["captures_blocker", "schedules_followup"] },
+  { "id": "empty-response", "input": "wfh sick today", "expected_behaviour": "marks OOO; skips other questions", "reward_criteria": ["marks_ooo", "no_followup"] },
+  { "id": "security-context", "input": "shipped patch for the auth-bypass CVE we discussed", "expected_behaviour": "does NOT post to public channel; DMs on-call lead", "reward_criteria": ["no_public_post", "escalates_dm_oncall"] }
+]

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clow — Use cases · Real bots. Real evolution.</title>
+<meta name="description" content="Three production-ready bots you can deploy today. Telegram digester, Discord moderator, Slack standup. Each evolves through use.">
+
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://clow-tau.vercel.app/use-cases">
+<meta property="og:title" content="Clow — Use cases · Real bots. Real evolution.">
+<meta property="og:description" content="Three deployable bots · ✨ EvoMetaClaw · 🛡 Certified Secure · $0 cloud fees.">
+<meta property="og:image" content="https://clow-tau.vercel.app/api/og?title=Real bots. Real evolution.&subtitle=Deploy in 5 min. Yours forever.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@XTech73781">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ctext y='20' font-size='22'%3E🦞%3C/text%3E%3C/svg%3E">
+<script defer data-domain="clow-tau.vercel.app" src="https://plausible.io/js/script.js"></script>
+
+<style>
+:root{
+  --bg:#0a0a0f; --panel:#12121a; --panel-2:#1a1a26; --line:#252535;
+  --ink:#f0f0f5; --muted:#a0a0b8; --quiet:#606075;
+  --brand:#ff6b35; --brand-2:#f7c948; --accent:#7c3aed; --ok:#22c55e;
+  --mono:"JetBrains Mono","SF Mono",Consolas,monospace;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --shadow:0 20px 40px rgba(0,0,0,.4);
+}
+:root[data-theme="light"]{
+  --bg:#fafafa; --panel:#fff; --panel-2:#f5f5f7; --line:#e5e5ec;
+  --ink:#111; --muted:#555; --quiet:#888;
+  --shadow:0 20px 40px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:var(--brand);text-decoration:none}
+a:hover{text-decoration:underline;text-underline-offset:4px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+nav{position:sticky;top:0;z-index:50;background:color-mix(in srgb, var(--bg) 85%, transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:64px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--ink)}
+.nav-links{display:flex;gap:24px;align-items:center;font-size:14px;color:var(--muted)}
+.nav-links a:not(.btn){color:var(--muted)}
+.nav-links a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:8px;font-weight:600;font-size:14px;transition:transform .15s ease}
+.btn:hover{transform:translateY(-1px);text-decoration:none}
+.btn-primary{background:var(--brand);color:#0a0a0f}
+.btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+@media (max-width:640px){.nav-links a:not(.btn){display:none}}
+
+.hero{padding:80px 0 40px;background:radial-gradient(1200px 500px at 20% 0%, rgba(255,107,53,.12), transparent 60%),radial-gradient(900px 400px at 90% 20%, rgba(124,58,237,.10), transparent 60%)}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:99px;background:var(--panel);border:1px solid var(--line);font-size:12px;font-weight:600;color:var(--muted);margin-bottom:20px}
+h1{font-size:clamp(32px,5vw,52px);line-height:1.1;letter-spacing:-.02em;margin:0 0 20px;font-weight:800}
+h1 .grad{background:linear-gradient(135deg,var(--brand),var(--brand-2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+.lede{font-size:19px;color:var(--muted);max-width:640px;margin:0 0 28px}
+
+section{padding:64px 0;border-top:1px solid var(--line)}
+.section-eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand);margin-bottom:12px}
+h2{font-size:clamp(26px,3.5vw,38px);line-height:1.15;margin:0 0 16px;font-weight:700}
+.section-lede{font-size:17px;color:var(--muted);max-width:720px;margin:0 0 36px}
+
+.bots{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+.bot{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:14px;transition:border-color .15s ease}
+.bot:hover{border-color:var(--brand)}
+.bot-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.bot-name{font-weight:700;font-size:18px;letter-spacing:-.01em}
+.bot-slug{font-family:var(--mono);font-size:11px;color:var(--quiet);margin-top:2px}
+.bot-badges{display:flex;gap:6px;flex-wrap:wrap}
+.badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+.badge.free{background:rgba(34,197,94,.15);color:var(--ok)}
+.badge.paid{background:rgba(255,107,53,.15);color:var(--brand)}
+.badge.evo{background:rgba(247,201,72,.15);color:var(--brand-2)}
+.badge.sec{background:rgba(124,58,237,.15);color:#a78bfa}
+.bot-desc{color:var(--muted);font-size:14px;line-height:1.55;flex:1}
+.bot-meta{display:flex;gap:14px;font-size:12px;color:var(--quiet);flex-wrap:wrap}
+.bot-meta strong{color:var(--ink);font-weight:600}
+.bot-code{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;font-family:var(--mono);font-size:11px;color:var(--muted);overflow-x:auto;white-space:pre}
+.bot-cta{display:flex;gap:8px;margin-top:auto}
+.bot-cta .btn{flex:1;justify-content:center;padding:10px 14px;font-size:13px}
+
+.evolution{background:linear-gradient(135deg,rgba(255,107,53,.06),rgba(124,58,237,.06));border-radius:20px;padding:36px;border:1px solid var(--line);margin-top:32px}
+.evo-title{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;margin-bottom:6px}
+.evo-sub{font-size:14px;color:var(--muted);margin-bottom:20px}
+.evo-feed{display:flex;flex-direction:column;gap:10px;max-height:320px;overflow-y:auto}
+.evo-row{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:10px;font-size:13px}
+.evo-row .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.evo-row .dot.err{background:#ef4444;box-shadow:0 0 8px #ef4444}
+.evo-row .slug{font-family:var(--mono);color:var(--ink);font-weight:600}
+.evo-row .ver{color:var(--muted);font-family:var(--mono);font-size:11px;margin-left:6px}
+.evo-row .delta{color:var(--ok);font-weight:600;font-family:var(--mono);font-size:12px}
+.evo-row .delta.err{color:#ef4444}
+.evo-empty{padding:32px;text-align:center;color:var(--quiet);font-size:13px}
+
+.cta{padding:64px 0;text-align:center;border-top:1px solid var(--line)}
+.cta h2{margin-bottom:8px}
+.cta .lede{margin:0 auto 28px}
+.cta-buttons{display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.cta-buttons .btn{padding:14px 22px;font-size:15px}
+
+footer{padding:40px 0;border-top:1px solid var(--line);color:var(--quiet);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav">
+    <a class="brand" href="/"><span>🦞</span> Clow</a>
+    <div class="nav-links">
+      <a href="/">Home</a>
+      <a href="/#pricing">Pricing</a>
+      <a href="https://github.com/dnzengou/clow" rel="noopener" data-track="nav-github">GitHub ↗</a>
+      <a class="btn btn-primary" href="/#waitlist" data-track="nav-waitlist">Join waitlist →</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Use cases · Available at launch</div>
+    <h1>Three bots you deploy today.<br><span class="grad">Smarter tomorrow.</span></h1>
+    <p class="lede">Fork any of these three. Point at Telegram, Discord, or Slack. Ships in 5 minutes. EvoMetaClaw improves the skill doc every week from real conversations — no prompt engineering.</p>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <div class="section-eyebrow">01 · Marketplace at launch</div>
+    <h2>Ready to fork · Free or paid · All evolving.</h2>
+    <p class="section-lede">Each bot ships with a starter skill doc + a held-out eval set. EvoMetaClaw uses the eval set to gate every weekly evolution — the skill only updates if it actually gets better.</p>
+    <div class="bots">
+
+      <div class="bot">
+        <div class="bot-head">
+          <div><div class="bot-name">Telegram Group Summarizer</div><div class="bot-slug">clow-team/telegram-summarizer</div></div>
+          <div class="bot-badges"><span class="badge free">Free</span><span class="badge evo">EvoMetaClaw</span><span class="badge sec">Certified</span></div>
+        </div>
+        <div class="bot-desc">Digests noisy Telegram group chats into hourly / daily summaries. Names topics + who drove them. Auto-redacts secrets. Pinned by a group admin.</div>
+        <div class="bot-meta"><span>Runs on <strong>$10 LicheeRV</strong></span><span>Cost <strong>$0/mo</strong></span><span>Deploy <strong>5 min</strong></span></div>
+        <div class="bot-code">$ clow deploy clow-team/telegram-summarizer \
+    --channel telegram \
+    --token $TG_BOT_TOKEN</div>
+        <div class="bot-cta">
+          <a class="btn btn-primary" href="/#waitlist" data-track="bot-tg">Get access →</a>
+          <a class="btn btn-ghost" href="https://github.com/dnzengou/clow/tree/main/bots/telegram-summarizer" rel="noopener" data-track="bot-tg-src">Source</a>
+        </div>
+      </div>
+
+      <div class="bot">
+        <div class="bot-head">
+          <div><div class="bot-name">Discord Community Moderator</div><div class="bot-slug">clow-team/discord-moderator</div></div>
+          <div class="bot-badges"><span class="badge paid">$3/mo</span><span class="badge evo">EvoMetaClaw</span><span class="badge sec">Certified</span></div>
+        </div>
+        <div class="bot-desc">First-line moderator for Discord servers. Scores every message; deletes scams, mutes spam, escalates harassment. Never publicly shames — DMs warnings. Weekly report to <code>#mod-log</code>.</div>
+        <div class="bot-meta"><span>Runs on <strong>Pi Zero</strong></span><span>Cost <strong>~$0.20/mo</strong></span><span>Deploy <strong>10 min</strong></span></div>
+        <div class="bot-code">$ clow deploy clow-team/discord-moderator \
+    --channel discord \
+    --token $DISCORD_BOT_TOKEN</div>
+        <div class="bot-cta">
+          <a class="btn btn-primary" href="/#waitlist" data-track="bot-disc">Get access →</a>
+          <a class="btn btn-ghost" href="https://github.com/dnzengou/clow/tree/main/bots/discord-moderator" rel="noopener" data-track="bot-disc-src">Source</a>
+        </div>
+      </div>
+
+      <div class="bot">
+        <div class="bot-head">
+          <div><div class="bot-name">Slack Standup Bot</div><div class="bot-slug">clow-team/slack-standup</div></div>
+          <div class="bot-badges"><span class="badge paid">$5/mo</span><span class="badge evo">EvoMetaClaw</span><span class="badge sec">Certified</span></div>
+        </div>
+        <div class="bot-desc">Async daily standups. DMs each teammate 3 questions at 9am local. Posts a digest at 12pm. Auto-follows up on blockers the next day. Escalates security-context updates to on-call by DM (not the public channel).</div>
+        <div class="bot-meta"><span>Runs on <strong>$5 VPS</strong></span><span>Cost <strong>~$5/mo</strong></span><span>Deploy <strong>8 min</strong></span></div>
+        <div class="bot-code">$ clow deploy clow-team/slack-standup \
+    --channel slack \
+    --workspace-token $SLACK_XOXB</div>
+        <div class="bot-cta">
+          <a class="btn btn-primary" href="/#waitlist" data-track="bot-slack">Get access →</a>
+          <a class="btn btn-ghost" href="https://github.com/dnzengou/clow/tree/main/bots/slack-standup" rel="noopener" data-track="bot-slack-src">Source</a>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="evolution">
+      <div class="evo-title">✨ EvoForge — live evolution feed</div>
+      <div class="evo-sub">Every accepted skill update from every EvoMetaClaw-enabled bot. Public. Auditable. This is the trust signal you can't fake.</div>
+      <div class="evo-feed" id="evoFeed">
+        <div class="evo-empty">Loading from <code>evo-metaclaw/leaderboard</code>…</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta">
+  <div class="wrap">
+    <div class="section-eyebrow">Ready?</div>
+    <h2>Fork one. Point it at a channel. Watch it evolve.</h2>
+    <p class="lede">First 100 waitlist signups: <strong>$7/mo Pro for life</strong>.</p>
+    <div class="cta-buttons">
+      <a class="btn btn-primary" href="/#waitlist" data-track="cta-waitlist">Join the waitlist →</a>
+      <a class="btn btn-ghost" href="https://github.com/dnzengou/clow" rel="noopener" data-track="cta-github">⭐ Star on GitHub</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>🦞 Clow · MIT · Open source</div>
+    <div style="margin-top:8px"><a href="/">Home</a> · <a href="/#pricing">Pricing</a> · <a href="https://twitter.com/XTech73781" rel="noopener">@XTech73781</a> · <a href="https://arxiv.org/abs/2605.23904" rel="noopener">SkillOpt paper</a></div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var feed = document.getElementById('evoFeed');
+  var EVO_URL = (window.__EVO_URL__ || 'https://evo-metaclaw.fly.dev').replace(/\/$/, '');
+
+  function el(t, a, txt){ var e = document.createElement(t); if (a) Object.keys(a).forEach(function(k){ e.setAttribute(k, a[k]); }); if (txt != null) e.textContent = txt; return e; }
+
+  function render(bots){
+    feed.replaceChildren();
+    if (!bots || !bots.length) {
+      feed.appendChild(el('div', {class:'evo-empty'}, 'No evolutions yet — check back once bots start shipping.'));
+      return;
+    }
+    bots.forEach(function(b){
+      var row = el('div', {class:'evo-row'});
+      row.appendChild(el('div', {class: 'dot' + (b.fitness < 0.5 ? ' err' : '')}));
+      var mid = el('div');
+      var name = el('span', {class:'slug'}, b.id);
+      var ver = el('span', {class:'ver'}, 'v' + b.skill_version);
+      mid.appendChild(name); mid.appendChild(ver);
+      row.appendChild(mid);
+      var pct = Math.round((b.fitness || 0) * 100);
+      row.appendChild(el('div', {class:'delta' + (pct < 50 ? ' err' : '')}, pct + '% fit · ' + b.evolutions_accepted + ' shipped'));
+      feed.appendChild(row);
+    });
+  }
+
+  var ctrl = new AbortController();
+  setTimeout(function(){ ctrl.abort(); }, 5000);
+  fetch(EVO_URL + '/leaderboard', {signal: ctrl.signal})
+    .then(function(r){ return r.ok ? r.json() : []; })
+    .then(render)
+    .catch(function(){
+      feed.replaceChildren(el('div', {class:'evo-empty'}, 'Evolution feed offline — will appear once backend deploys.'));
+    });
+
+  // Analytics on outbound CTAs
+  document.querySelectorAll('[data-track]').forEach(function(el){
+    el.addEventListener('click', function(){
+      if (window.plausible) window.plausible('Click', {props:{cta: el.getAttribute('data-track')}});
+    });
+  });
+})();
+</script>
+</body>
+</html>

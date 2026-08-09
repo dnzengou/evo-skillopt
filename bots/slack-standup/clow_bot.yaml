@@ -1,0 +1,29 @@
+# Slack Standup Bot — sample Clow bot
+name: slack-standup
+version: 0.1.0
+author: clow-team
+license: MIT
+description: |
+  Async daily standups in Slack. DMs each team member 3 questions,
+  compiles a channel-friendly digest, follows up on blockers.
+tags: [slack, standup, team, async]
+
+picoclaw_version: ">=0.2.4"
+channels: [slack]
+llm:
+  provider: any
+  fallback: picolm
+
+skill: skills/main.md
+
+evometaclaw:
+  enabled: true
+  cadence: weekly
+  gate_threshold: 0.05
+  learning_rate: 3
+  eval_set: eval/held_out.json
+
+pricing:
+  tier: subscription
+  price_usd: 5
+  revenue_share: 0.70

@@ -1,0 +1,29 @@
+# Discord Community Moderator — sample Clow bot
+name: discord-moderator
+version: 0.1.0
+author: clow-team
+license: MIT
+description: |
+  First-responder moderator for Discord communities. Detects spam,
+  scams, and rule violations; warns, mutes, or escalates to human mods.
+tags: [discord, moderation, community, safety]
+
+picoclaw_version: ">=0.2.4"
+channels: [discord]
+llm:
+  provider: any
+  fallback: picolm
+
+skill: skills/main.md
+
+evometaclaw:
+  enabled: true
+  cadence: weekly
+  gate_threshold: 0.05
+  learning_rate: 3
+  eval_set: eval/held_out.json
+
+pricing:
+  tier: subscription
+  price_usd: 3
+  revenue_share: 0.70

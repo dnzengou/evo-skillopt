@@ -1,0 +1,31 @@
+# Telegram Group Summarizer — sample Clow bot
+name: telegram-summarizer
+version: 0.1.0
+author: clow-team
+license: MIT
+description: |
+  Digests noisy Telegram group chats into hourly / daily summaries.
+  Pinned by a group admin; runs on-device (PicoClaw) or on any $5 VPS.
+tags: [telegram, productivity, edge, digest]
+
+picoclaw_version: ">=0.2.4"
+channels: [telegram]
+llm:
+  provider: any
+  fallback: picolm
+
+skill: skills/main.md
+
+# EvoMetaClaw — self-improve from real conversation quality signals
+evometaclaw:
+  enabled: true
+  cadence: weekly
+  gate_threshold: 0.05
+  learning_rate: 3
+  eval_set: eval/held_out.json
+
+# Marketplace listing
+pricing:
+  tier: free
+  price_usd: 0
+  revenue_share: 0.70

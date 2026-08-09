@@ -1,0 +1,35 @@
+app = "security-agent"
+primary_region = "iad"
+kill_signal = "SIGTERM"
+
+[build]
+  dockerfile = "security-agent/Dockerfile"
+
+[env]
+  RUST_LOG = "info"
+  PORT = "8080"
+  DATABASE_URL = "sqlite:///data/security-agent.db"
+  RATE_LIMIT_PER_MINUTE = "10"
+
+[[mounts]]
+  source = "security_data"
+  destination = "/data"
+
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [[services.tcp_checks]]
+    interval = "15s"
+    timeout = "2s"

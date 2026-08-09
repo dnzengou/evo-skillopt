@@ -1,42 +1,62 @@
+# ── Python ────────────────────────────────────────────
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
 *.egg-info/
 build/
 dist/
 site/
+.eggs/
+.venv/
+venv/
+.env
+.env.local
+.env.*.local
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+htmlcov/
 
-data/
-outputs/
-logs/
-external/
+# ── evo-skillopt runtime data ─────────────────────────
+/outputs/
+/data/
+/logs/
+/external/
+*.db
+*.sqlite
+*.log
 
+# ── User-provided benchmarks (not redistributed) ──────
 /BabyVision/
 /MMRB/
 /SpreadsheetBench/
 /dl4ir-searchQA/
 
+# ── Local overrides ───────────────────────────────────
 configs/local/
 configs/**/*.local.yaml
 *.local.md
 *.secret.md
 *.bak
-
-.env
 .secrets/
-.codex_azure*/
 
-# Internal docs (not for open-source release)
-docs/ablation_plan.md
-docs/ablation_paper_tables.md
-docs/ablation_paper_tables.html
-docs/experiment_commands.md
-docs/slow_update_flowchart.md
-docs/session_memory.md
-docs/harness_fresh_machine_handoff.md
-docs/harness_monitoring_memory.md
-docs/harness_reproduction_secrets.secret.md
-docs/reflact_conda_env_export.yml
-docs/reflact_overview.html
-docs/render_ablation_paper_tables.py
-docs/让*
+# ── Container / orchestration ─────────────────────────
+.fly/
+.dockerignore
+
+# ── IDE / OS ──────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ── Docs local previews ───────────────────────────────
+docs/_site/
 .gradio/
+
+# ── Vendored SkillOpt if used as git submodule ────────
+# (Uncomment if you switch from vendored dir to submodule.)
+# /skillopt/

@@ -3,168 +3,51 @@ hide:
   - navigation
 ---
 
-<div class="hero" markdown>
+# evo-skillopt
 
-# SkillOpt
+**Text-space skill optimization for production LLM agents, callable over HTTP.**
 
-### Train Agent Skills Like Neural Networks
+Train your agent's Markdown skill file like a neural network — epochs,
+batch size, learning rates, validation gates — without touching model
+weights. Ships behind a small HTTP service any runtime can call.
 
-*Optimize natural-language skill documents through iterative rollout, reflection, and gated validation — with epochs, learning rates, and validation gates — without touching model weights.*
-
-[Get Started :material-rocket-launch:](guide/installation.md){ .md-button .md-button--primary }
-[View on GitHub :material-github:](https://github.com/microsoft/SkillOpt){ .md-button }
-
-</div>
+[Get started :material-rocket-launch:](../INSTALL.md){ .md-button .md-button--primary }
+[View on GitHub :material-github:](https://github.com/dnzengou/evo-skillopt){ .md-button }
 
 ---
 
-## How It Works
+## What to read first
 
-<div class="pipeline-container" markdown>
-<div class="pipeline-wrapper">
-
-<div class="pipeline-stage" id="stage-rollout">
-<div class="stage-icon">🎯</div>
-<div class="stage-label">Rollout</div>
-<div class="stage-desc">Target executes tasks</div>
-</div>
-
-<div class="pipeline-arrow"><div class="flow-line"></div></div>
-
-<div class="pipeline-stage" id="stage-reflect">
-<div class="stage-icon">🔍</div>
-<div class="stage-label">Reflect</div>
-<div class="stage-desc">Optimizer analyzes trajectories</div>
-</div>
-
-<div class="pipeline-arrow"><div class="flow-line"></div></div>
-
-<div class="pipeline-stage" id="stage-aggregate">
-<div class="stage-icon">🔗</div>
-<div class="stage-label">Aggregate</div>
-<div class="stage-desc">Merge edit patches</div>
-</div>
-
-<div class="pipeline-arrow"><div class="flow-line"></div></div>
-
-<div class="pipeline-stage" id="stage-select">
-<div class="stage-icon">✂️</div>
-<div class="stage-label">Select</div>
-<div class="stage-desc">Rank & clip edits</div>
-</div>
-
-<div class="pipeline-arrow"><div class="flow-line"></div></div>
-
-<div class="pipeline-stage" id="stage-update">
-<div class="stage-icon">📝</div>
-<div class="stage-label">Update</div>
-<div class="stage-desc">Apply to skill doc</div>
-</div>
-
-<div class="pipeline-arrow"><div class="flow-line"></div></div>
-
-<div class="pipeline-stage" id="stage-gate">
-<div class="stage-icon">🚦</div>
-<div class="stage-label">Gate</div>
-<div class="stage-desc">Validate & accept</div>
-</div>
-
-</div>
-
-<div class="pipeline-epoch-bar">
-<div class="epoch-mechanism">🔄 Slow Update</div>
-<div class="epoch-mechanism">🧠 Meta Skill</div>
-<div class="epoch-label">Epoch Boundary</div>
-</div>
-
-</div>
+| If you want to…                                        | Read                                               |
+|--------------------------------------------------------|----------------------------------------------------|
+| Understand the idea                                     | [Concept](CONCEPT.md)                              |
+| Install it (any platform)                               | [INSTALL.md](../INSTALL.md)                        |
+| Pick your first use case                                | [USE_CASES.md](../USE_CASES.md)                    |
+| See the roadmap                                          | [EvoSkillOpt_Blueprint.md](../EvoSkillOpt_Blueprint.md) |
+| Look up a term                                           | [Glossary](GLOSSARY.md)                            |
+| Learn the underlying algorithm                           | Upstream *Getting Started* + *Core Concepts* in the nav |
 
 ---
 
-## Deep Learning Analogy
+## About this documentation site
 
-SkillOpt brings the familiar deep-learning training paradigm to agentic prompt optimization:
+`evo-skillopt` productizes the SkillOpt algorithm
+([arXiv:2605.23904](https://arxiv.org/abs/2605.23904), MIT-licensed)
+as a callable HTTP service. This documentation site includes:
 
-| Deep Learning | SkillOpt | 
-|---|---|
-| Model weights | Skill document (Markdown) |
-| Forward pass | Rollout (target executes tasks) |
-| Loss / gradient | Reflect (optimizer produces edit patches) |
-| Gradient clipping | Edit selection (`learning_rate` = max edits) |
-| SGD step | Patch application to skill |
-| Validation set | Gated evaluation on selection split |
-| LR schedule | `lr_scheduler`: cosine, linear, constant |
-| Epochs | Multi-epoch with slow update & meta skill memory |
+- **evo-skillopt pages** — Concept, Glossary, and the top-level
+  guides (Install, Use Cases, Blueprint).
+- **Upstream reference pages** — the original SkillOpt documentation
+  covering the training loop, configuration, and API. These are
+  distributed here under the upstream MIT license for convenience;
+  see [NOTICE](../NOTICE) for full attribution.
 
----
+`evo-skillopt` is an independent open-source project and is not
+affiliated with or endorsed by the SkillOpt authors or any upstream
+organization. See [TRADEMARKS.md](../TRADEMARKS.md).
 
-## Supported Benchmarks
+## License
 
-| Benchmark | Type | Config |
-|---|---|---|
-| **DocVQA** | Document QA | `configs/docvqa/` |
-| **ALFWorld** | Embodied AI | `configs/alfworld/` |
-| **OfficeQA** | Enterprise QA | `configs/officeqa/` |
-| **SearchQA** | Open-domain QA | `configs/searchqa/` |
-| **LiveMathBench** | Math reasoning | `configs/livemathematicianbench/` |
-| **SWEBench** | Software Engineering | `configs/swebench/` |
-| + 5 more | Various | See [docs](guide/first-experiment.md) |
-
----
-
-## Quick Example
-
-```bash
-# Install
-pip install -e .
-
-# Configure credentials
-export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
-export AZURE_OPENAI_API_KEY="your-key"
-
-# Train on SearchQA
-python scripts/train.py --config configs/searchqa/default.yaml
-
-# Evaluate best skill
-python scripts/eval_only.py \
-  --config configs/searchqa/default.yaml \
-  --skill outputs/best_skill.md
-```
-
----
-
-<div class="grid cards" markdown>
-
--   :material-book-open-variant:{ .lg .middle } **Getting Started**
-
-    ---
-
-    Install SkillOpt, configure your API keys, and run your first experiment in 5 minutes.
-
-    [:octicons-arrow-right-24: Installation](guide/installation.md)
-
--   :material-puzzle:{ .lg .middle } **Add a Benchmark**
-
-    ---
-
-    Extend SkillOpt with your own benchmark in ~100 lines of code.
-
-    [:octicons-arrow-right-24: Extension Guide](guide/new-benchmark.md)
-
--   :material-cog:{ .lg .middle } **Configuration**
-
-    ---
-
-    Full reference for all hyperparameters with deep learning analogies.
-
-    [:octicons-arrow-right-24: Config Reference](reference/config.md)
-
--   :material-monitor-dashboard:{ .lg .middle } **WebUI**
-
-    ---
-
-    Configure, launch, and monitor training from your browser.
-
-    [:octicons-arrow-right-24: WebUI Guide](guide/first-experiment.md#webui)
-
-</div>
+This documentation is distributed under the [MIT License](../LICENSE).
+Upstream SkillOpt content retains its original license and copyright;
+see [NOTICE](../NOTICE) for attribution.

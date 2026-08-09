@@ -2,59 +2,70 @@ name: ci
 
 on:
   push:
-    branches: [main, "claude/**"]
-    paths:
-      - "clow-agents/**"
-      - "scripts/**"
-      - "api/**"
-      - ".github/workflows/ci.yml"
+    branches: [main, "develop/**", "feature/**", "claude/**"]
   pull_request:
-    paths:
-      - "clow-agents/**"
-      - "scripts/**"
-      - "api/**"
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  rust-check:
-    name: cargo check (clow-agents)
+  py-check:
+    name: python compile + lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
         with:
-          workspaces: clow-agents/backend
-      - name: cargo check --all-targets
-        working-directory: clow-agents/backend
-        run: cargo check --all-targets --locked || cargo check --all-targets
-      - name: cargo clippy (warnings ok, errors fail)
-        working-directory: clow-agents/backend
-        run: cargo clippy --all-targets -- -A clippy::all
+          python-version: "3.12"
+          cache: pip
+      - name: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest
+      - name: py compile — worker
+        run: python -m py_compile worker/skillopt_worker.py
+      - name: ruff (informational)
+        run: ruff check . || true
+      - name: pytest (informational)
+        run: pytest -q || true
 
-  scripts-check:
-    name: shellcheck + py compile
+  shellcheck:
+    name: shellcheck
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: py compile
-        run: python3 -m py_compile scripts/skillopt_worker.py
-      - name: bash -n
-        run: bash -n scripts/smoke.sh
-      - name: shellcheck (informational)
+      - name: install + run
         run: |
           sudo apt-get update && sudo apt-get install -y shellcheck
-          shellcheck scripts/smoke.sh || true
+          shellcheck scripts/*.sh || true
 
-  edge-lint:
-    name: node syntax check (Vercel edge fns)
+  docker-build:
+    name: docker build (worker image)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: build worker image
+        uses: docker/build-push-action@v6
         with:
-          node-version: "20"
-      - name: node --check api/*.js
+          context: .
+          file: worker/Dockerfile
+          push: false
+          tags: evo-skillopt-worker:ci
+          load: true
+      - name: smoke — image starts + /health responds
         run: |
-          for f in api/*.js; do
-            node --check "$f"
+          docker run -d --rm --name w -p 9000:9000 \
+            -e WORKER_TOKEN=ci-token evo-skillopt-worker:ci
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -sf http://localhost:9000/health > /dev/null; then
+              echo "healthy after ${i}s"; docker rm -f w; exit 0
+            fi
+            sleep 1
           done
+          docker logs w; docker rm -f w; exit 1

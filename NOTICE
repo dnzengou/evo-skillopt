@@ -1,0 +1,41 @@
+evo-skillopt
+Copyright (c) 2026 The evo-skillopt contributors
+
+This product includes and depends on third-party software licensed
+under the MIT License and other permissive open-source licenses.
+The following notices are provided as required by those licenses.
+
+================================================================
+SkillOpt (vendored under skillopt/, referenced by scripts/train.py,
+scripts/eval_only.py, and configs/)
+    Paper:   arXiv:2605.23904
+    Docs:    https://microsoft.github.io/SkillOpt
+    License: MIT
+    Copyright (c) 2026 Microsoft Corporation and SkillOpt contributors.
+
+SkillOpt is redistributed under the terms of the MIT License. A copy
+of the SkillOpt license (identical to this project's LICENSE) is
+included with the vendored source. evo-skillopt is an independent
+project and is not affiliated with, endorsed by, or sponsored by
+Microsoft Corporation or the SkillOpt authors.
+================================================================
+
+Python packages (declared in pyproject.toml) are used at runtime and
+retain their own licenses:
+    - openai (Apache 2.0)
+    - anthropic (MIT) — optional
+    - google-genai (Apache 2.0) — optional
+    - azure-identity, azure-core (MIT)
+    - httpx (BSD-3-Clause)
+    - pyyaml (MIT)
+    - numpy (BSD-3-Clause)
+    - openpyxl (MIT)
+    - gradio (Apache 2.0) — optional
+    - alfworld, gymnasium — optional benchmark deps, various licenses
+    - ruff, pytest — dev-only, MIT
+
+Container base image: python:3.12-slim (PSF License + Debian).
+
+All product, service, and paper names are trademarks or registered
+trademarks of their respective owners. Use of these names does not
+imply endorsement. See TRADEMARKS.md.

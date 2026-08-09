@@ -1,0 +1,45 @@
+# docker-compose.yml — self-host evo-skillopt worker locally with one command.
+# Usage:
+#   cp ../.env.example ../.env    # then edit values
+#   docker compose --env-file ../.env up --build -d
+#   curl http://localhost:9000/health
+#
+# The build context is the repo root (`..`) so the Dockerfile can COPY
+# skillopt/, scripts/, and configs/ into the image.
+
+services:
+  worker:
+    build:
+      context: ..
+      dockerfile: worker/Dockerfile
+    image: evo-skillopt-worker:local
+    container_name: evo-skillopt-worker
+    restart: unless-stopped
+    ports:
+      - "${WORKER_PORT:-9000}:9000"
+    environment:
+      WORKER_TOKEN: ${WORKER_TOKEN:-}
+      OUTPUT_ROOT:  /data/outputs
+      TRAIN_SCRIPT: /app/scripts/train.py
+      # Pass through any LLM provider creds the skill training needs
+      OPENAI_API_KEY:            ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY:         ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY:            ${GOOGLE_API_KEY:-}
+      AZURE_OPENAI_ENDPOINT:     ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_KEY:      ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_API_VERSION:  ${AZURE_OPENAI_API_VERSION:-}
+    volumes:
+      - evo-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9000/health',timeout=3).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  evo-data:

@@ -1,0 +1,32 @@
+# Telegram Group Summarizer — example evo-skillopt bot manifest
+# This manifest is runtime-agnostic. Any agent runtime that speaks the
+# evo-skillopt worker protocol can consume it.
+
+name: telegram-summarizer
+version: 0.1.0
+license: MIT
+description: |
+  Digests noisy Telegram group chats into hourly / daily summaries.
+  Runs anywhere a small Python/Go/Node process can run — from a $5 VPS
+  to a Raspberry Pi.
+
+tags: [telegram, productivity, digest]
+
+channels: [telegram]
+
+# Which LLM(s) the runtime should call. `provider: any` means the
+# runtime picks based on its own configured backends.
+llm:
+  provider: any
+
+# The behavior contract for this bot — a Markdown file that
+# evo-skillopt trains against your held-out eval set.
+skill: skills/main.md
+
+# evo-skillopt training loop configuration.
+evolution:
+  enabled: true
+  cadence: weekly
+  gate_min_improvement: 0.05
+  num_epochs: 3
+  eval_split_dir: eval/

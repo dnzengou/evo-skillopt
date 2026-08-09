@@ -1,8 +1,9 @@
-site_name: SkillOpt Documentation
-site_url: https://microsoft.github.io/SkillOpt
-site_description: "SkillOpt: Agentic Skill Optimization via Reflective Training Loops"
-repo_url: https://github.com/microsoft/SkillOpt
-repo_name: microsoft/SkillOpt
+site_name: evo-skillopt
+site_url: https://dnzengou.github.io/evo-skillopt
+site_description: "Text-space skill optimization for production LLM agents, callable over HTTP."
+repo_url: https://github.com/dnzengou/evo-skillopt
+repo_name: dnzengou/evo-skillopt
+edit_uri: edit/main/docs/
 
 theme:
   name: material
@@ -35,23 +36,24 @@ theme:
     text: Inter
     code: JetBrains Mono
 
-
-
 nav:
   - Home: index.md
-  - Getting Started:
+  - evo-skillopt:
+    - Concept: CONCEPT.md
+    - Glossary: GLOSSARY.md
+  - Getting Started (upstream SkillOpt reference):
     - Installation: guide/installation.md
     - First Experiment: guide/first-experiment.md
     - Configuration: guide/configuration.md
-  - Core Concepts:
+  - Core Concepts (upstream SkillOpt reference):
     - Training Loop: guide/training-loop.md
     - Skill Document: guide/skill-document.md
     - Deep Learning Analogy: guide/dl-analogy.md
-  - Extension Guides:
+  - Extension Guides (upstream SkillOpt reference):
     - Add a New Benchmark: guide/new-benchmark.md
     - Local Environment Smoke Tests: guide/local-env-smoke.md
     - Add a New Model Backend: guide/new-backend.md
-  - Reference:
+  - Reference (upstream SkillOpt reference):
     - Configuration Reference: reference/config.md
     - CLI Reference: reference/cli.md
     - API Reference: reference/api.md

@@ -1,0 +1,24 @@
+# Discord Community Moderator — example evo-skillopt bot manifest
+
+name: discord-moderator
+version: 0.1.0
+license: MIT
+description: |
+  First-responder moderator for Discord communities. Detects spam,
+  scams, and rule violations; warns, mutes, or escalates to human mods.
+
+tags: [discord, moderation, safety]
+
+channels: [discord]
+
+llm:
+  provider: any
+
+skill: skills/main.md
+
+evolution:
+  enabled: true
+  cadence: weekly
+  gate_min_improvement: 0.05
+  num_epochs: 3
+  eval_split_dir: eval/

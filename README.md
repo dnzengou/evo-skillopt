@@ -1,265 +1,128 @@
-# SkillOpt: Executive Strategy for Self-Evolving Agent Skills
+# evo-skillopt
 
-*Train agent skills like you train neural networks — with epochs, (mini-)batchsize, learning rates, and validation gates — but without touching model weights.*
+> **Text-space skill optimization for production LLM agents.**
+> Train your agent's Markdown skill file like a neural network — epochs,
+> batch size, learning rates, validation gates — without touching model
+> weights. Ships behind a small HTTP service any runtime can call.
 
-[![Project Page](https://img.shields.io/badge/Project%20Page-SkillOpt-8dbb3c)](https://microsoft.github.io/SkillOpt/) [![Paper](https://img.shields.io/badge/Paper-arXiv-b31b1b)](https://arxiv.org/abs/2605.23904) [![Project Video](https://img.shields.io/badge/Project%20Video-Watch%20Demo-ff0000)](https://youtu.be/JUBMDTCiM0M) [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-
-## 🎬 SkillOpt Demo Video
-
-https://github.com/user-attachments/assets/eb12d3bc-371c-467f-904d-91b61f339ed7
-
-<p align="center">
-  <a href="https://youtu.be/JUBMDTCiM0M"><b>▶ Watch the full demo on YouTube</b></a>
-</p>
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![CI](https://github.com/dnzengou/evo-skillopt/actions/workflows/ci.yml/badge.svg)](https://github.com/dnzengou/evo-skillopt/actions/workflows/ci.yml)
 
 ---
 
-## Install
+## What this is
 
-**Requirements:** Python 3.10+
+`evo-skillopt` productizes the **SkillOpt** algorithm ([arXiv:2605.23904](https://arxiv.org/abs/2605.23904), MIT-licensed) as a callable service.
 
-```bash
-git clone https://github.com/microsoft/SkillOpt.git
-cd SkillOpt
-pip install -e .
+Every AI agent product ships a v1.0 system prompt and iterates via ad-hoc
+prompt tweaks. evo-skillopt turns that loop into disciplined training:
 
-# For ALFWorld benchmark (optional):
-pip install -e ".[alfworld]"
-alfworld-download
-```
+- **Skill = Markdown file.** Human-readable behavior contract.
+- **Training loop = rollout → reflect → aggregate → select → update → gate.**
+- **Gate = held-out eval set.** If a new skill doesn't beat the previous one, we roll back.
+- **Zero weight changes.** Works with any frozen LLM (OpenAI, Anthropic, Google, Azure, local).
+- **Git-tracked audit trail.** Every skill version is a commit.
 
-### Configure API Credentials
+## What this is *not*
 
-```bash
-cp .env.example .env
-# Edit .env with your API credentials, then:
-source .env
-```
+- A new training algorithm — SkillOpt itself is the upstream project.
+- A new LLM.
+- A prompt-engineering IDE.
+- An eval framework alone — evals are the gate, not the point.
 
-**Azure OpenAI** (recommended):
-```bash
-export AZURE_OPENAI_ENDPOINT="https://your-resource.openai.azure.com/"
-# Option 1: API key auth
-export AZURE_OPENAI_API_KEY="your-key"
-# Option 2: Azure CLI auth (no API key needed)
-export AZURE_OPENAI_AUTH_MODE="azure_cli"
-```
-
-> **Note:** `AZURE_OPENAI_ENDPOINT` is required for all three modes (`api_key`, `azure_cli`,
-> `openai_compatible`). Without it, all LLM calls will fail.
-
-**OpenAI-compatible endpoints**:
-```bash
-export AZURE_OPENAI_ENDPOINT="https://api.openai.com/v1"
-export AZURE_OPENAI_API_KEY="sk-..."
-export AZURE_OPENAI_AUTH_MODE="openai_compatible"
-```
-
-This routes all calls through the plain OpenAI Python client (no Azure auth, no `api-version`
-header).
-
-> **Note:** SkillOpt reuses the `AZURE_OPENAI_*` env var names even in this mode — there is no
-> separate `OPENAI_API_KEY` knob.
-
-**Anthropic Claude**:
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-```
-
-**Qwen (local vLLM)**:
-```bash
-export QWEN_CHAT_BASE_URL="http://localhost:8000/v1"
-export QWEN_CHAT_MODEL="Qwen/Qwen3.5-4B"
-```
-
----
-
-## Data Preparation
-
-SkillOpt expects data in a **split directory** with `train/`, `val/`, `test/` subdirectories, each containing a JSON file (e.g., `items.json`).
-
-```
-data/my_split/
-├── train/items.json
-├── val/items.json
-└── test/items.json
-```
-
-Each JSON file is an array of task items. The required fields depend on the benchmark. For example, SearchQA items look like:
-
-```json
-[
-  {
-    "id": "unique_item_id",
-    "question": "Who wrote the novel ...",
-    "context": "[DOC] relevant passage text ...",
-    "answers": ["expected answer"]
-  }
-]
-```
-
-See `skillopt/envs/<benchmark>/dataloader.py` for the exact format each benchmark expects.
-
-> **Note:** Benchmark datasets are not included in this repository. Prepare your own data following the format above.
-
-### Supported Benchmarks
-
-| Benchmark | Type | Config |
-|---|---|---|
-| SearchQA | QA | `configs/searchqa/default.yaml` |
-| ALFWorld | Embodied agent | `configs/alfworld/default.yaml` |
-| DocVQA | Document QA | `configs/docvqa/default.yaml` |
-| LiveMathematicianBench | Math | `configs/livemathematicianbench/default.yaml` |
-| SpreadsheetBench | Code generation | `configs/spreadsheetbench/default.yaml` |
-| OfficeQA | Tool-augmented QA | `configs/officeqa/default.yaml` |
-
----
-
-## Quick Start
-
-### Training
+## Quick start (5 minutes)
 
 ```bash
-# Minimal example — train on SearchQA:
-python scripts/train.py \
-    --config configs/searchqa/default.yaml \
-    --split_dir /path/to/your/searchqa_split \
-    --azure_openai_endpoint https://your-resource.openai.azure.com/ \
-    --optimizer_model gpt-5.5 \
-    --target_model gpt-5.5
+# 1. Clone
+git clone https://github.com/dnzengou/evo-skillopt.git
+cd evo-skillopt
 
-# Train on LiveMathematicianBench:
-python scripts/train.py \
-    --config configs/livemathematicianbench/default.yaml \
-    --split_dir /path/to/your/livemath_split \
-    --azure_openai_endpoint https://your-resource.openai.azure.com/ \
-    --optimizer_model gpt-5.5 \
-    --target_model gpt-5.5
+# 2. Install
+pip install -e ".[worker]"
 
-# Train on ALFWorld:
-python scripts/train.py \
-    --config configs/alfworld/default.yaml \
-    --split_dir /path/to/your/alfworld_split \
-    --azure_openai_endpoint https://your-resource.openai.azure.com/ \
-    --optimizer_model gpt-5.5 \
-    --target_model gpt-5.5
+# 3. Run the worker
+WORKER_TOKEN=dev-token python3 worker/skillopt_worker.py &
+
+# 4. Verify
+curl http://localhost:9000/health
+# → {"service":"skillopt-worker","status":"ok"}
 ```
 
-Key CLI arguments:
+See [`INSTALL.md`](./INSTALL.md) for platform-specific installers (pipx,
+Homebrew, Docker, systemd, Fly.io, Kubernetes).
 
-| Argument | Description | Example |
-|---|---|---|
-| `--config` | Benchmark config YAML | `configs/searchqa/default.yaml` |
-| `--split_dir` | Path to data split directory | `/path/to/split` |
-| `--azure_openai_endpoint` | Azure OpenAI endpoint URL | `https://your-resource.openai.azure.com/` |
-| `--optimizer_model` | Optimizer model deployment name | `gpt-5.5` |
-| `--target_model` | Target model deployment name | `gpt-5.5` |
-| `--num_epochs` | Number of training epochs | `4` |
-| `--batch_size` | Batch size per step | `40` |
-| `--workers` | Parallel rollout workers | `8` |
-| `--out_root` | Output directory | `outputs/my_run` |
-
-### Eval Only
-
-Evaluate a trained skill on specific data splits without training:
-
-```bash
-# Evaluate the packaged GPT-5.5 SearchQA skill on the test split:
-python scripts/eval_only.py \
-  --config configs/searchqa/default.yaml \
-  --skill ckpt/searchqa/gpt5.5_skill.md \
-  --split valid_unseen \
-  --split_dir /path/to/searchqa_split \
-  --azure_openai_endpoint https://your-resource.openai.azure.com/
-
-# Evaluate on all splits (train + val + test):
-python scripts/eval_only.py \
-  --config configs/searchqa/default.yaml \
-  --skill ckpt/searchqa/gpt5.5_skill.md \
-  --split all \
-  --split_dir /path/to/searchqa_split \
-  --azure_openai_endpoint https://your-resource.openai.azure.com/
-```
-
-To evaluate a skill produced by a training run, replace `--skill` with that
-run's best-skill path, for example `outputs/my_run/best_skill.md`.
-
-| Split | Description |
-|---|---|
-| `valid_unseen` | Test set |
-| `valid_seen` | Validation set |
-| `train` | Training set |
-| `all` | All splits combined (default) |
-
-### Output Structure
-
-Each run writes to a structured output directory:
+## Architecture
 
 ```
-outputs/<run_name>/
-├── config.json              # Flattened runtime config
-├── history.json             # Per-step training history
-├── runtime_state.json       # Resume checkpoint
-├── best_skill.md            # Best validated skill document
-├── skills/skill_vXXXX.md   # Skill snapshot per step
-├── steps/step_XXXX/        # Per-step artifacts (patches, evals)
-├── slow_update/epoch_XX/   # Slow update logs
-└── meta_skill/epoch_XX/    # Meta skill logs
+   your agent runtime          evo-skillopt worker           SkillOpt core
+   (any language)              (Python HTTP · stdlib)        (vendored MIT)
+        │                            │                             │
+        │ POST /train ──────────────►│                             │
+        │                            │ subprocess: train.py ──────►│
+        │                            │                             │  rollout
+        │                            │                             │  reflect
+        │                            │                             │  aggregate
+        │                            │                             │  select
+        │                            │                             │  update
+        │                            │                             │  gate
+        │                            │◄────── history.json ────────│
+        │◄──────── JSON ─────────────│  (delta, next_version)      │
 ```
 
-Re-running the same command auto-resumes from the last completed step.
+## Documentation
 
----
+| File                                                  | What                                                    |
+|-------------------------------------------------------|---------------------------------------------------------|
+| [`INSTALL.md`](./INSTALL.md)                          | Standalone install — desktop, server, cloud, container  |
+| [`USE_CASES.md`](./USE_CASES.md)                      | Low-hanging-fruit patterns with ROI math                |
+| [`EvoSkillOpt_Blueprint.md`](./EvoSkillOpt_Blueprint.md) | Living roadmap · capabilities · KPIs · v0.1 → v1.0   |
+| [`docs/CONCEPT.md`](./docs/CONCEPT.md)                | Core concept in depth                                   |
+| [`docs/GLOSSARY.md`](./docs/GLOSSARY.md)              | Terminology                                             |
+| [`worker/README.md`](./worker/README.md)              | Worker operations reference                             |
+| [`CONTRIBUTING.md`](./CONTRIBUTING.md)                | How to contribute                                       |
+| [`SECURITY.md`](./SECURITY.md)                        | How to report vulnerabilities                           |
+| [`NOTICE`](./NOTICE)                                  | Third-party attributions                                |
+| [`TRADEMARKS.md`](./TRADEMARKS.md)                    | Trademark & branding notice                             |
+| [`DISCLAIMER.md`](./DISCLAIMER.md)                    | No-warranty statement                                   |
 
-## Community-contributed configs
+## Structure
 
-These are **not** default SkillOpt settings — they are reference configs
-contributed by users for specific scenarios. The paper-reported numbers
-were obtained with the default settings, not these.
-
-- **`configs/examples/soft_gate.yaml`** *(PR #25, contributed by
-  [@lvbaocheng](https://github.com/lvbaocheng))* — switches the
-  validation gate from exact-match (`hard`) to soft / partial-credit
-  (`soft` or `mixed`). Useful when the held-out **selection split is
-  small** (e.g. ≤ ~10 items) and the **reward is continuous**, where the
-  discrete hard gate often rejects every candidate and training stalls.
-  See the comment at the top of the file for details and when not to use
-  it.
-
----
-
-## WebUI
-
-Launch the monitoring dashboard (optional):
-
-```bash
-pip install -e ".[webui]"
-python -m skillopt_webui.app
+```
+evo-skillopt/
+├── worker/               # HTTP service — Dockerfile, fly.toml, compose
+│   └── skillopt_worker.py
+├── skillopt/             # vendored SkillOpt library (MIT · upstream)
+├── scripts/              # train.py · eval_only.py · smoke.sh
+├── configs/              # per-benchmark training configs (YAML)
+├── ckpt/                 # packaged reference skills (.md)
+├── examples/             # runnable example bots (skill + eval only)
+│   ├── telegram-summarizer/
+│   ├── discord-moderator/
+│   └── slack-standup/
+├── docs/                 # concept · glossary · MkDocs source
+├── skillopt_webui/       # optional Gradio monitoring dashboard
+├── .github/workflows/    # CI — py compile · docker build · shellcheck
+├── pyproject.toml        # modern packaging (PEP 621) + ruff + pytest
+└── EvoSkillOpt_Blueprint.md   # living roadmap — read first
 ```
 
-| Flag | Default | Description |
-|---|---|---|
-| `--port` | 7860 | Server port |
-| `--host` | `0.0.0.0` | Bind address |
-| `--share` | off | Create a public Gradio share link |
+## Contributing
 
-```bash
-# With public share link (useful for remote servers)
-python -m skillopt_webui.app --share
-```
+Read [`EvoSkillOpt_Blueprint.md § 13`](./EvoSkillOpt_Blueprint.md#13-change-management)
+before opening a PR.
 
----
+## License
 
-## Citation
+MIT — see [`LICENSE`](./LICENSE) and [`NOTICE`](./NOTICE) for third-party
+attributions.
 
-```bibtex
-@misc{yang2026skilloptexecutivestrategyselfevolving,
-      title={SkillOpt: Executive Strategy for Self-Evolving Agent Skills}, 
-      author={Yifan Yang and Ziyang Gong and Weiquan Huang and Qihao Yang and Ziwei Zhou and Zisu Huang and Yan Li and Xuemei Gao and Qi Dai and Bei Liu and Kai Qiu and Yuqing Yang and Dongdong Chen and Xue Yang and Chong Luo},
-      year={2026},
-      eprint={2605.23904},
-      archivePrefix={arXiv},
-      primaryClass={cs.AI},
-      url={https://arxiv.org/abs/2605.23904}
-}
-```
+## Attribution
+
+This project depends on and vendors the SkillOpt reference implementation
+([arXiv:2605.23904](https://arxiv.org/abs/2605.23904)). See [`NOTICE`](./NOTICE)
+for full attribution and license text.
+
+`evo-skillopt` is an independent open-source project. It is not affiliated
+with, endorsed by, or sponsored by any upstream project or its authors.
+See [`TRADEMARKS.md`](./TRADEMARKS.md).

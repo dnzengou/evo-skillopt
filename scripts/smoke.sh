@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# smoke.sh — health probe for the Clow backend stack
+# smoke.sh — health probe for a locally-running evo-skillopt worker.
+#
 # Usage:
-#   ./scripts/smoke.sh                    # localhost defaults
-#   GTM=https://gtm-engine.fly.dev ./scripts/smoke.sh
+#   ./scripts/smoke.sh                                           # localhost default
+#   WORKER=https://your-app.fly.dev ./scripts/smoke.sh           # remote
+#   WORKER=http://localhost:9000 API_TOKEN=xyz ./scripts/smoke.sh
 set -u
 
-GTM=${GTM:-http://localhost:8080}
-SEC=${SEC:-http://localhost:8081}
-EVO=${EVO:-http://localhost:8082}
 WORKER=${WORKER:-http://localhost:9000}
-TOKEN=${API_TOKEN:-dev-token-change-me}
+TOKEN=${API_TOKEN:-${WORKER_TOKEN:-}}
 
 fail=0
+
 probe() {
   local name=$1 url=$2
   local code
@@ -24,33 +24,49 @@ probe() {
   fi
 }
 
-echo "== Clow backend smoke =="
-probe "gtm-engine"      "$GTM/health"
-probe "security-agent"  "$SEC/health"
-probe "evo-metaclaw"    "$EVO/health"
-probe "skillopt-worker" "$WORKER/health"
-
-echo ""
-echo "== Authenticated smoke =="
 auth_probe() {
   local name=$1 url=$2
   local code
   code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
     -H "Authorization: Bearer $TOKEN" "$url" 2>/dev/null || echo "000")
   case "$code" in
-    200|204) printf "  ✓ %-20s %s (%s)\n" "$name" "$url" "$code" ;;
-    401|403) printf "  ! %-20s %s (%s — token mismatch?)\n" "$name" "$url" "$code"; fail=$((fail + 1)) ;;
-    *)       printf "  ✗ %-20s %s (%s)\n" "$name" "$url" "$code"; fail=$((fail + 1)) ;;
+    200|204|400|500)
+      printf "  ✓ %-20s %s (%s — reachable, auth accepted)\n" "$name" "$url" "$code" ;;
+    401|403)
+      printf "  ! %-20s %s (%s — token mismatch)\n" "$name" "$url" "$code"
+      fail=$((fail + 1)) ;;
+    *)
+      printf "  ✗ %-20s %s (%s)\n" "$name" "$url" "$code"
+      fail=$((fail + 1)) ;;
   esac
 }
-auth_probe "gtm accounts"    "$GTM/accounts"
-auth_probe "gtm forecast"    "$GTM/pipeline/forecast"
-auth_probe "sec findings"    "$SEC/findings"
-auth_probe "evo bots"        "$EVO/bots"
 
-echo ""
-echo "== Public leaderboard =="
-probe "evo leaderboard"      "$EVO/leaderboard"
+echo "== evo-skillopt worker smoke =="
+probe "health" "$WORKER/health"
+
+if [ -n "$TOKEN" ]; then
+  echo ""
+  echo "== Authenticated probe (POST /train reachability) =="
+  # Sends a minimal body to confirm auth + routing without triggering a real training run.
+  code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
+    -X POST "$WORKER/train" \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"bot_id":"smoke/probe"}' 2>/dev/null || echo "000")
+  case "$code" in
+    200|400|500)
+      printf "  ✓ %-20s %s (%s — reachable, auth accepted)\n" "train" "$WORKER/train" "$code" ;;
+    401|403)
+      printf "  ! %-20s %s (%s — token mismatch)\n" "train" "$WORKER/train" "$code"
+      fail=$((fail + 1)) ;;
+    *)
+      printf "  ✗ %-20s %s (%s)\n" "train" "$WORKER/train" "$code"
+      fail=$((fail + 1)) ;;
+  esac
+else
+  echo ""
+  echo "(set WORKER_TOKEN or API_TOKEN to also probe POST /train)"
+fi
 
 echo ""
 if [ "$fail" -eq 0 ]; then

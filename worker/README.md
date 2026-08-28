@@ -5,10 +5,11 @@ exposes text-space skill optimization as a callable HTTP API.
 
 ## Endpoints
 
-| Method | Path       | Purpose                                                      |
-|--------|------------|--------------------------------------------------------------|
-| GET    | `/health`  | Liveness probe (unauthenticated)                             |
-| POST   | `/train`   | Run one training pass (bearer auth if `WORKER_TOKEN` is set) |
+| Method | Path              | Purpose                                                             |
+|--------|-------------------|---------------------------------------------------------------------|
+| GET    | `/health`         | Liveness probe (unauthenticated)                                    |
+| POST   | `/train`          | Run one training pass (bearer auth if `WORKER_TOKEN` is set)        |
+| POST   | `/train/cascade`  | Aggregate + gate a cascade of per-stage scores (no training)        |
 
 ## Environment
 
@@ -86,6 +87,61 @@ Response schema:
   "output_dir":        "outputs/evo/acme-support-bot-v0.1.1-<ts>",
   "duration_s":        412,
   "job_id":            "<uuid>"
+}
+```
+
+## RRSS gate (optional overlay)
+
+Add an `rrss` block to the `/train` payload to score the candidate across
+four resilience axes — Robustify, Reliabilify, Solidify, Stabilize — and
+gate on the composite. See
+[`../configs/examples/rrss_gate.yaml`](../configs/examples/rrss_gate.yaml)
+for the payload shape and
+[`rrss_gate.py`](./rrss_gate.py) for the axis definitions.
+
+When present, the RRSS composite replaces the base `gate_score_delta` in
+the accept/reject decision; the base delta is still returned in the
+response, alongside the four axis scores and the pass/reject reason.
+
+## Cascade endpoint
+
+`POST /train/cascade` aggregates and gates a *pipeline* of already-scored
+skills — e.g. `[filter_pii, classify_intent, draft_reply]` — into one
+pass/fail. It performs no training; call it after producing per-stage
+scores (from prior `/train` runs, offline evals, or CI harnesses).
+
+```bash
+curl -X POST https://<your-app>.fly.dev/train/cascade \
+  -H "Authorization: Bearer $WORKER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bot_id": "acme/support-bot",
+    "stages": [
+      {"name": "filter",   "score": 0.94},
+      {"name": "classify", "score": 0.88},
+      {"name": "draft",    "score": 0.91, "weight": 2.0}
+    ],
+    "aggregation":         "weighted_mean",
+    "aggregate_threshold": 0.85,
+    "stage_floor":         0.60
+  }'
+```
+
+Response:
+
+```json
+{
+  "ok":           true,
+  "gate_passed":  true,
+  "aggregate":    0.9100,
+  "aggregation":  "weighted_mean",
+  "reason":       "aggregate 0.910 ≥ 0.850 (weighted_mean)",
+  "stages": [
+    {"name": "filter",   "score": 0.94, "weight": 1.0},
+    {"name": "classify", "score": 0.88, "weight": 1.0},
+    {"name": "draft",    "score": 0.91, "weight": 2.0}
+  ],
+  "job_id": "<uuid>"
 }
 ```
 

@@ -39,6 +39,13 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+# Local, stdlib-only extensions
+_HERE = Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
+from cascade import StageResult, evaluate_cascade  # noqa: E402
+from rrss_gate import compute_rrss, rrss_gate  # noqa: E402
+
 WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "").strip()
 OUTPUT_ROOT = Path(os.environ.get("OUTPUT_ROOT", "outputs/evo")).resolve()
 TRAIN_SCRIPT = Path(os.environ.get("TRAIN_SCRIPT", "scripts/train.py")).resolve()
@@ -114,13 +121,99 @@ def run_training(job: dict) -> dict:
 
     delta = parse_gate_delta(output_dir)
     gate_min = float(job.get("gate_min_improvement", 0.05))
-    return {
+    result = {
         "ok": True,
         "gate_passed": delta >= gate_min,
         "gate_score_delta": round(delta, 4),
         "next_version": next_version if delta >= gate_min else skill_version,
         "output_dir": str(output_dir),
         "duration_s": duration,
+    }
+
+    # Optional RRSS overlay: caller passes ``rrss`` payload with the four
+    # axis inputs; the RRSS composite becomes the authoritative gate.
+    rrss_payload = job.get("rrss")
+    if isinstance(rrss_payload, dict):
+        components = compute_rrss(
+            per_item_scores=rrss_payload.get("per_item_scores", []),
+            repeated_scores=rrss_payload.get("repeated_scores", []),
+            scores_by_category=rrss_payload.get("scores_by_category") or {},
+            prev_pass=rrss_payload.get("prev_pass", []),
+            cand_pass=rrss_payload.get("cand_pass", []),
+            weights=rrss_payload.get("weights"),
+        )
+        decision = rrss_gate(
+            components,
+            previous_composite=float(rrss_payload.get("previous_composite", 0.0)),
+            min_improvement=float(rrss_payload.get("min_improvement", 0.0)),
+            axis_floors=rrss_payload.get("axis_floors") or {},
+        )
+        result["gate_passed"] = decision.passed
+        result["next_version"] = next_version if decision.passed else skill_version
+        result["rrss"] = {
+            "composite": round(components.composite, 4),
+            "robustify": round(components.robustify, 4),
+            "reliabilify": round(components.reliabilify, 4),
+            "solidify": round(components.solidify, 4),
+            "stabilize": round(components.stabilize, 4),
+            "delta": round(decision.delta, 4),
+            "reason": decision.reason,
+        }
+    return result
+
+
+def run_cascade(job: dict) -> dict:
+    """Score a cascade of skills as one behavior contract.
+
+    Expected payload:
+        {
+          "bot_id":    "author/name",
+          "stages": [
+            {"name": "filter",    "score": 0.94, "weight": 1.0},
+            {"name": "classify",  "score": 0.88},
+            {"name": "draft",     "score": 0.91}
+          ],
+          "aggregation":         "mean" | "min" | "product" | "weighted_mean",
+          "aggregate_threshold": 0.85,
+          "stage_floor":         0.60
+        }
+
+    Per-stage scores must already be produced (e.g. by prior ``/train``
+    calls). The cascade endpoint is pure aggregation + gating — it does
+    not run training, so it responds in milliseconds and can be called
+    from CI to enforce pipeline-level acceptance criteria.
+    """
+    raw_stages = job.get("stages") or []
+    if not isinstance(raw_stages, list) or not raw_stages:
+        return {"ok": False, "error": "cascade-missing-stages"}
+    try:
+        stages = tuple(
+            StageResult(
+                name=str(s["name"]),
+                score=float(s["score"]),
+                weight=float(s.get("weight", 1.0)),
+                passed=bool(s.get("passed", True)),
+            )
+            for s in raw_stages
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        return {"ok": False, "error": f"cascade-bad-stage: {exc}"}
+    outcome = evaluate_cascade(
+        stages,
+        aggregation=job.get("aggregation", "mean"),
+        aggregate_threshold=float(job.get("aggregate_threshold", 0.0)),
+        stage_floor=float(job.get("stage_floor", 0.0)),
+    )
+    return {
+        "ok": True,
+        "gate_passed": outcome.gate_passed,
+        "aggregate": round(outcome.aggregate, 4),
+        "aggregation": outcome.aggregation,
+        "reason": outcome.reason,
+        "stages": [
+            {"name": s.name, "score": round(s.score, 4), "weight": s.weight}
+            for s in outcome.stages
+        ],
     }
 
 
@@ -146,7 +239,7 @@ class Handler(BaseHTTPRequestHandler):
             self._write(404, {"error": "not-found"})
 
     def do_POST(self) -> None:
-        if self.path != "/train":
+        if self.path not in ("/train", "/train/cascade"):
             self._write(404, {"error": "not-found"})
             return
         if not self._authed():
@@ -165,8 +258,12 @@ class Handler(BaseHTTPRequestHandler):
             self._write(400, {"error": "missing-bot-id"})
             return
         job_id = str(uuid.uuid4())
-        print(f"[{job_id}] training bot={job['bot_id']} v={job.get('skill_version')}", flush=True)
-        result = run_training(job)
+        if self.path == "/train/cascade":
+            print(f"[{job_id}] cascade bot={job['bot_id']} stages={len(job.get('stages') or [])}", flush=True)
+            result = run_cascade(job)
+        else:
+            print(f"[{job_id}] training bot={job['bot_id']} v={job.get('skill_version')}", flush=True)
+            result = run_training(job)
         result["job_id"] = job_id
         code = 200 if result.get("ok") else 500
         self._write(code, result)

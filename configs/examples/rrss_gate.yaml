@@ -1,0 +1,44 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Example: RRSS-scored validation gate (evo-skillopt worker extension)
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# This is NOT a default SkillOpt setting and is NOT used by the vendored
+# core. It is applied *at the worker layer* by supplying the ``rrss``
+# payload on `POST /train`. The worker overrides the base gate decision
+# with the RRSS-composite gate.
+#
+# When to consider this:
+#   - Your bot is in production and a single accuracy number does not
+#     capture the failure modes that matter (worst-case tickets, cross-
+#     category coverage, silent regressions on previously-passing items).
+#   - You want an explicit *floor* on any one axis — e.g. "never accept
+#     a skill whose Solidify (category coverage) drops below 0.60".
+#
+# How it works:
+#   The worker computes four sub-scores from the training run's outputs:
+#     Robustify   — worst-quartile per-item score
+#     Reliabilify — 1 - CV across repeated rollouts
+#     Solidify    — min-per-category mean
+#     Stabilize   — items that used to pass and still pass
+#   The weighted mean becomes the *composite*. The candidate is accepted
+#   iff every configured axis clears its floor AND the composite gains
+#   at least ``min_improvement`` over the previous accepted version.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_base_: ../_base_/default.yaml
+
+# The worker reads this block from the /train request body under `rrss:`.
+# Include only the fields you have signal for; missing axes fall back to
+# safe defaults (see worker/rrss_gate.py:compute_rrss docstring).
+rrss:
+  weights:
+    robustify:   0.30   # weight adversarial floor heavily
+    reliabilify: 0.20
+    solidify:    0.30   # coverage matters as much as worst-case
+    stabilize:   0.20
+
+  axis_floors:
+    robustify:   0.50   # never accept a skill that collapses on hard items
+    solidify:    0.60   # never accept a skill that abandons a category
+
+  min_improvement: 0.02   # composite must beat previous by at least 0.02

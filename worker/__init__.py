@@ -1,6 +1,13 @@
 """EvoSkillOpt worker package.
 
-Contains the HTTP bridge (``skillopt_worker``) plus the RRSS gate
-(``rrss_gate``) and cascade evaluator (``cascade``) that extend the
-vendored SkillOpt core with resilience-scored, multi-stage evolution.
+Contains the HTTP bridge (``skillopt_worker``) plus four stdlib-only
+extensions to the vendored SkillOpt core:
+
+* ``rrss_gate``          — resilience-scored gate (Robustify / Reliabilify
+                           / Solidify / Stabilize).
+* ``rrss_from_history``  — derives the RRSS axis inputs from a training
+                           run's ``history.json`` and rollout dumps.
+* ``cascade``            — multi-stage skill pipeline gating.
+* ``arm_signals``        — Acquire / Retain / Monetize signal bucketing
+                           for lifecycle-aware bot fitness.
 """

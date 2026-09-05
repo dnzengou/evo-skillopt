@@ -80,6 +80,15 @@ gate acceptance requires the aggregate to meet a threshold *and*
 every stage to meet its own floor. Implemented in `worker/cascade.py`
 and exposed at `POST /train/cascade`.
 
+**ARM** · A three-bucket classifier for production signals —
+**A**\ cquire, **R**\ etain, **M**\ onetize — that reduces
+heterogeneous events (thumbs-up, renewal, cancellation, upsell)
+to one composite fitness score. Per-bucket weights let a single
+fitness formula follow the product lifecycle (acquire-heavy at
+launch → retain-heavy at scale → monetize-heavy at maturity).
+Implemented in `worker/arm_signals.py` and exposed at
+`POST /fitness/arm`.
+
 ## Related upstream terms (from the SkillOpt paper)
 
 **Aggregate** · Consolidation of multiple reflections into a

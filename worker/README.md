@@ -10,6 +10,7 @@ exposes text-space skill optimization as a callable HTTP API.
 | GET    | `/health`         | Liveness probe (unauthenticated)                                    |
 | POST   | `/train`          | Run one training pass (bearer auth if `WORKER_TOKEN` is set)        |
 | POST   | `/train/cascade`  | Aggregate + gate a cascade of per-stage scores (no training)        |
+| POST   | `/fitness/arm`    | Reduce ARM-bucketed signals to one composite fitness (no training)  |
 
 ## Environment
 
@@ -144,6 +145,69 @@ Response:
   "job_id": "<uuid>"
 }
 ```
+
+### Auto-deriving RRSS inputs
+
+The RRSS overlay accepts inputs inline (as shown above) *or* it can
+derive them from the run's own outputs. Set `rrss.auto_from_history:
+true` and the worker reads:
+
+* `<output_dir>/rollouts/current.jsonl` — one row per eval item:
+  `{"score": 0.83, "category": "billing"}`.
+* `<output_dir>/history.json` — the trainer's per-epoch summary
+  (`steps[*].val_reward` seeds Reliabilify).
+* an optional `rrss.prev_rollouts_path` — same shape as
+  `current.jsonl` for the previously-accepted skill (seeds Stabilize).
+
+See [`rrss_from_history.py`](./rrss_from_history.py) for the exact
+conventions and defaults.
+
+## ARM fitness endpoint
+
+`POST /fitness/arm` reduces a batch of production signals to one
+composite fitness score, bucketed by lifecycle stage (Acquire, Retain,
+Monetize). Pure aggregation — no training. Meant to be called by
+whatever collects your bot's production signals so they can hand the
+worker a single number to gate evolutions on.
+
+```bash
+curl -X POST https://<your-app>.fly.dev/fitness/arm \
+  -H "Authorization: Bearer $WORKER_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bot_id": "acme/support-bot",
+    "signals": [
+      {"bucket": "acquire",  "delta": 1.0, "kind": "trial_started"},
+      {"bucket": "retain",   "delta": 0.5, "kind": "csat_5"},
+      {"bucket": "monetize", "delta": 2.0, "kind": "plan_upgrade"}
+    ],
+    "weights": {"acquire": 0.3, "retain": 0.5, "monetize": 0.2}
+  }'
+```
+
+Response:
+
+```json
+{
+  "ok":        true,
+  "composite": 0.95,
+  "weights":   {"acquire": 0.3, "retain": 0.5, "monetize": 0.2},
+  "per_bucket": [
+    {"bucket": "acquire",  "count": 1, "sum_delta": 1.0, "mean_delta": 1.0},
+    {"bucket": "retain",   "count": 1, "sum_delta": 0.5, "mean_delta": 0.5},
+    {"bucket": "monetize", "count": 1, "sum_delta": 2.0, "mean_delta": 2.0}
+  ],
+  "job_id": "<uuid>"
+}
+```
+
+Rebalance `weights` over the product lifecycle:
+
+| Stage   | acquire | retain | monetize |
+|---------|--------:|-------:|---------:|
+| launch  |    0.60 |   0.30 |     0.10 |
+| growth  |    0.30 |   0.50 |     0.20 |
+| mature  |    0.10 |   0.40 |     0.50 |
 
 See [`../EvoSkillOpt_Blueprint.md`](../EvoSkillOpt_Blueprint.md) for the
 full picture — capabilities, roadmap, and use-case catalog.

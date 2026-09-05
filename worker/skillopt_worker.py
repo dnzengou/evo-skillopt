@@ -43,7 +43,9 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
+from arm_signals import Signal, compute_fitness  # noqa: E402
 from cascade import StageResult, evaluate_cascade  # noqa: E402
+from rrss_from_history import derive_inputs  # noqa: E402
 from rrss_gate import compute_rrss, rrss_gate  # noqa: E402
 
 WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "").strip()
@@ -132,14 +134,34 @@ def run_training(job: dict) -> dict:
 
     # Optional RRSS overlay: caller passes ``rrss`` payload with the four
     # axis inputs; the RRSS composite becomes the authoritative gate.
+    # If ``rrss.auto_from_history`` is set, inputs are derived from the
+    # run's output_dir instead of being passed inline.
     rrss_payload = job.get("rrss")
     if isinstance(rrss_payload, dict):
+        if rrss_payload.get("auto_from_history"):
+            prev_path = rrss_payload.get("prev_rollouts_path")
+            derived = derive_inputs(
+                output_dir,
+                prev_rollouts_path=Path(prev_path) if prev_path else None,
+                pass_threshold=float(rrss_payload.get("pass_threshold", 0.5)),
+            )
+            per_item_scores = derived.per_item_scores
+            repeated_scores = derived.repeated_scores
+            scores_by_category = derived.scores_by_category
+            prev_pass = derived.prev_pass
+            cand_pass = derived.cand_pass
+        else:
+            per_item_scores = rrss_payload.get("per_item_scores", [])
+            repeated_scores = rrss_payload.get("repeated_scores", [])
+            scores_by_category = rrss_payload.get("scores_by_category") or {}
+            prev_pass = rrss_payload.get("prev_pass", [])
+            cand_pass = rrss_payload.get("cand_pass", [])
         components = compute_rrss(
-            per_item_scores=rrss_payload.get("per_item_scores", []),
-            repeated_scores=rrss_payload.get("repeated_scores", []),
-            scores_by_category=rrss_payload.get("scores_by_category") or {},
-            prev_pass=rrss_payload.get("prev_pass", []),
-            cand_pass=rrss_payload.get("cand_pass", []),
+            per_item_scores=per_item_scores,
+            repeated_scores=repeated_scores,
+            scores_by_category=scores_by_category,
+            prev_pass=prev_pass,
+            cand_pass=cand_pass,
             weights=rrss_payload.get("weights"),
         )
         decision = rrss_gate(
@@ -160,6 +182,58 @@ def run_training(job: dict) -> dict:
             "reason": decision.reason,
         }
     return result
+
+
+def run_arm_fitness(job: dict) -> dict:
+    """Reduce a stream of ARM-bucketed signals to one composite fitness.
+
+    Expected payload:
+        {
+          "bot_id":  "author/name",
+          "signals": [
+            {"bucket": "acquire",  "delta": 1.0, "kind": "trial_started"},
+            {"bucket": "retain",   "delta": 0.5, "kind": "csat_5"},
+            {"bucket": "monetize", "delta": 2.0, "kind": "plan_upgrade"}
+          ],
+          "weights": {"acquire": 0.3, "retain": 0.5, "monetize": 0.2}
+        }
+
+    Pure aggregation — no training, no side effects. Meant to be called
+    by upstream systems that collect production signals so they can hand
+    the worker a single composite fitness score.
+    """
+    raw = job.get("signals") or []
+    if not isinstance(raw, list):
+        return {"ok": False, "error": "arm-missing-signals"}
+    try:
+        signals = [
+            Signal(
+                bucket=str(s["bucket"]),  # type: ignore[arg-type]
+                delta=float(s["delta"]),
+                kind=str(s.get("kind", "")),
+            )
+            for s in raw
+        ]
+    except (KeyError, TypeError, ValueError) as exc:
+        return {"ok": False, "error": f"arm-bad-signal: {exc}"}
+    try:
+        fit = compute_fitness(signals, weights=job.get("weights"))
+    except ValueError as exc:
+        return {"ok": False, "error": f"arm-bad-weights: {exc}"}
+    return {
+        "ok": True,
+        "composite": round(fit.composite, 6),
+        "weights": dict(fit.weights),
+        "per_bucket": [
+            {
+                "bucket": s.bucket,
+                "count": s.count,
+                "sum_delta": round(s.sum_delta, 6),
+                "mean_delta": round(s.mean_delta, 6),
+            }
+            for s in fit.per_bucket
+        ],
+    }
 
 
 def run_cascade(job: dict) -> dict:
@@ -239,7 +313,7 @@ class Handler(BaseHTTPRequestHandler):
             self._write(404, {"error": "not-found"})
 
     def do_POST(self) -> None:
-        if self.path not in ("/train", "/train/cascade"):
+        if self.path not in ("/train", "/train/cascade", "/fitness/arm"):
             self._write(404, {"error": "not-found"})
             return
         if not self._authed():
@@ -261,6 +335,9 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/train/cascade":
             print(f"[{job_id}] cascade bot={job['bot_id']} stages={len(job.get('stages') or [])}", flush=True)
             result = run_cascade(job)
+        elif self.path == "/fitness/arm":
+            print(f"[{job_id}] arm bot={job['bot_id']} signals={len(job.get('signals') or [])}", flush=True)
+            result = run_arm_fitness(job)
         else:
             print(f"[{job_id}] training bot={job['bot_id']} v={job.get('skill_version')}", flush=True)
             result = run_training(job)

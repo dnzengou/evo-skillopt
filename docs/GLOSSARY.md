@@ -66,6 +66,29 @@ Silent (no version bump); logged for post-hoc analysis.
 [`../EvoSkillOpt_Blueprint.md § 12`](../EvoSkillOpt_Blueprint.md#12-resilience-checklist):
 Robustify, Reliabilify, Solidify, Stabilize.
 
+**RRSS gate** · A validation gate that scores candidate skills on all
+four RRSS axes, then accepts only when every configured axis clears
+its floor AND the weighted-mean composite improves over the previous
+accepted version. Implemented in `worker/rrss_gate.py`. Opt-in via the
+`rrss` block on `POST /train` — see
+[`../configs/examples/rrss_gate.yaml`](../configs/examples/rrss_gate.yaml).
+
+**Cascade** · An ordered list of skills treated as one behavior
+contract — e.g. `[filter_pii.md, classify_intent.md, draft_reply.md]`.
+Each stage is scored independently against the same held-out set;
+gate acceptance requires the aggregate to meet a threshold *and*
+every stage to meet its own floor. Implemented in `worker/cascade.py`
+and exposed at `POST /train/cascade`.
+
+**ARM** · A three-bucket classifier for production signals —
+**A**\ cquire, **R**\ etain, **M**\ onetize — that reduces
+heterogeneous events (thumbs-up, renewal, cancellation, upsell)
+to one composite fitness score. Per-bucket weights let a single
+fitness formula follow the product lifecycle (acquire-heavy at
+launch → retain-heavy at scale → monetize-heavy at maturity).
+Implemented in `worker/arm_signals.py` and exposed at
+`POST /fitness/arm`.
+
 ## Related upstream terms (from the SkillOpt paper)
 
 **Aggregate** · Consolidation of multiple reflections into a

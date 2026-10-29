@@ -1,0 +1,79 @@
+{
+  "$schema": "https://agents.md/schema/v1/agents.json",
+  "name": "evo-skillopt",
+  "description": "Text-space skill optimization for production LLM agents, callable over HTTP. Evolves a bot's Markdown skill file against a held-out eval set with git-tracked audit trails.",
+  "homepage": "https://github.com/dnzengou/evo-skillopt",
+  "docs": "https://dnzengou.github.io/evo-skillopt",
+  "license": "MIT",
+  "keywords": [
+    "agent",
+    "prompt-optimization",
+    "skill-learning",
+    "LLM",
+    "agentic",
+    "skillopt",
+    "evaluation",
+    "fitness",
+    "RRSS",
+    "cascade",
+    "ARM"
+  ],
+  "capabilities": {
+    "evolves": "markdown skill files",
+    "trains_on": "held-out eval sets",
+    "callable_from": "any language via HTTP",
+    "deployment": ["pip", "docker-compose", "fly.io", "k8s", "railway", "render"]
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "auth": "none",
+      "purpose": "liveness probe",
+      "idempotent": true
+    },
+    {
+      "method": "POST",
+      "path": "/train",
+      "auth": "bearer",
+      "purpose": "run one SkillOpt training pass against a bot's skill + eval set",
+      "idempotent": false,
+      "optional_overlays": ["rrss"]
+    },
+    {
+      "method": "POST",
+      "path": "/train/cascade",
+      "auth": "bearer",
+      "purpose": "aggregate and gate a pipeline of pre-scored skills",
+      "idempotent": true
+    },
+    {
+      "method": "POST",
+      "path": "/fitness/arm",
+      "auth": "bearer",
+      "purpose": "reduce Acquire/Retain/Monetize signals to one composite fitness",
+      "idempotent": true
+    }
+  ],
+  "concepts": {
+    "skill": "A Markdown document specifying what a bot does, how, and what it must never do. The learnable parameter.",
+    "evolution": "One full training cycle: rollout -> reflect -> aggregate -> select -> update -> gate.",
+    "gate": "A hard validation check. A proposed skill diff must beat the eval score by at least gate_min_improvement.",
+    "rrss": "Four-axis resilience gate: Robustify, Reliabilify, Solidify, Stabilize.",
+    "cascade": "An ordered list of skills treated as one behavior contract; each stage must clear a per-stage floor plus an aggregate threshold.",
+    "arm": "Three-bucket signal classifier: Acquire, Retain, Monetize. Reduces heterogeneous production signals to one lifecycle-weighted fitness."
+  },
+  "entry_points": {
+    "overview":        "./README.md",
+    "orientation":     "./AGENTS.md",
+    "llms_txt":        "./llms.txt",
+    "blueprint":       "./EvoSkillOpt_Blueprint.md",
+    "glossary":        "./docs/GLOSSARY.md",
+    "worker_readme":   "./worker/README.md",
+    "worker_source":   "./worker/skillopt_worker.py"
+  },
+  "contact": {
+    "security": "./SECURITY.md",
+    "issues":   "https://github.com/dnzengou/evo-skillopt/issues"
+  }
+}

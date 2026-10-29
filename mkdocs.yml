@@ -1,9 +1,30 @@
 site_name: evo-skillopt
 site_url: https://dnzengou.github.io/evo-skillopt
-site_description: "Text-space skill optimization for production LLM agents, callable over HTTP."
+site_description: "Text-space skill optimization for production LLM agents, callable over HTTP. Train a Markdown skill file like a neural network — epochs, batches, validation gates — without touching model weights."
+site_author: "evo-skillopt contributors"
 repo_url: https://github.com/dnzengou/evo-skillopt
 repo_name: dnzengou/evo-skillopt
 edit_uri: edit/main/docs/
+
+extra:
+  generator: false
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/dnzengou/evo-skillopt
+  tags:
+    LLM: llm
+    Agent: agent
+    SkillOpt: skillopt
+    RRSS: rrss
+    Cascade: cascade
+    ARM: arm
+
+extra_css: []
+
+# Agent-crawl aids served from the docs site root.
+# Place matching copies in docs/ (sibling to index.md) and mkdocs will
+# publish them at /llms.txt, /llms-full.txt, /.well-known/agents.json,
+# /AGENTS.md so LLM crawlers and the llms.txt convention can locate them.
 
 theme:
   name: material

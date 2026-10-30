@@ -1,5 +1,29 @@
 # evo-skillopt
 
+<!--
+Machine-readable project card (schema.org JSON-LD) for LLM-powered
+search and agent crawlers. Human readers can skip to "What this is".
+-->
+<!-- llms.txt: ./llms.txt | agents manifest: ./.well-known/agents.json | AI-agent orientation: ./AGENTS.md -->
+
+<!-- JSON-LD: schema.org/SoftwareApplication -->
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "evo-skillopt",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux, macOS, Windows (Docker)",
+  "description": "Text-space skill optimization for production LLM agents, callable over HTTP. Evolves a bot's Markdown skill file against a held-out eval set with git-tracked audit trails.",
+  "programmingLanguage": "Python",
+  "license": "https://opensource.org/licenses/MIT",
+  "codeRepository": "https://github.com/dnzengou/evo-skillopt",
+  "documentation": "https://dnzengou.github.io/evo-skillopt",
+  "keywords": "agent, LLM, prompt-optimization, skill-learning, agentic, SkillOpt, RRSS, cascade, ARM",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+```
+
 > **Text-space skill optimization for production LLM agents.**
 > Train your agent's Markdown skill file like a neural network — epochs,
 > batch size, learning rates, validation gates — without touching model
@@ -82,6 +106,12 @@ Homebrew, Docker, systemd, Fly.io, Kubernetes).
 | [`worker/README.md`](./worker/README.md)              | Worker operations reference                             |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md)                | How to contribute                                       |
 | [`SECURITY.md`](./SECURITY.md)                        | How to report vulnerabilities                           |
+| [`AGENTS.md`](./AGENTS.md)                            | Orientation written for AI coding agents                |
+| [`llms.txt`](./llms.txt)                              | Short LLM-navigable project card ([llmstxt.org](https://llmstxt.org/)) |
+| [`llms-full.txt`](./llms-full.txt)                    | Full LLM-navigable summary with inline API spec         |
+| [`.well-known/agents.json`](./.well-known/agents.json) | Machine-readable manifest of endpoints and concepts    |
+| [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) | OpenAPI 3.1 spec for the worker's HTTP endpoints      |
+| [`CITATION.cff`](./CITATION.cff)                      | Citation metadata (CFF 1.2)                             |
 | [`NOTICE`](./NOTICE)                                  | Third-party attributions                                |
 | [`TRADEMARKS.md`](./TRADEMARKS.md)                    | Trademark & branding notice                             |
 | [`DISCLAIMER.md`](./DISCLAIMER.md)                    | No-warranty statement                                   |

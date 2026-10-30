@@ -1,0 +1,143 @@
+# evo-skillopt — llms-full.txt
+
+Full LLM-navigable summary. Shaped so an agent that reads only this
+file still has enough to understand what the service does, call it
+safely, and locate the source for anything deeper.
+
+Convention: [llms.txt](https://llmstxt.org/).
+
+## One-line description
+
+A self-hostable HTTP worker that evolves a Markdown "skill" file for an
+LLM agent against a held-out eval set — rollout → reflect → aggregate →
+select → update → gate — without touching model weights.
+
+## Why it exists
+
+Every AI agent product ships a v1.0 system prompt and iterates via
+ad-hoc edits. evo-skillopt makes that iteration disciplined: epochs,
+batches, validation gates, git-tracked audit trails. The compounding
+advantage is the eval sets and evolved skill artifacts a team builds up
+in their own repo over time, not the code (which is MIT).
+
+## Not what it is
+
+- Not a new training algorithm — SkillOpt itself ([arXiv:2605.23904])
+  is the upstream project. This repo productizes it as a service.
+- Not a new LLM. Works with any frozen model (OpenAI, Anthropic,
+  Google, Azure OpenAI, Ollama, vLLM).
+- Not a prompt-engineering IDE.
+- Not an eval framework alone — evals are the gate, not the point.
+
+## HTTP API (callable from any language)
+
+### `GET /health` — liveness
+
+Unauthenticated. Returns `{"service": "skillopt-worker", "status": "ok"}`.
+
+### `POST /train` — one training pass
+
+Bearer auth when `WORKER_TOKEN` is set. Payload:
+
+```json
+{
+  "bot_id":               "author/name",
+  "skill_version":        "0.1.0",
+  "skill_path":           "/data/.../skills/main.md",
+  "eval_split_dir":       "/data/.../eval",
+  "config":               "configs/searchqa/default.yaml",
+  "num_epochs":           1,
+  "gate_min_improvement": 0.05,
+  "rrss":                 { "...optional overlay": "..." }
+}
+```
+
+Response:
+
+```json
+{
+  "ok":                true,
+  "gate_passed":       true,
+  "gate_score_delta":  0.073,
+  "next_version":      "0.1.1",
+  "output_dir":        "outputs/evo/...",
+  "duration_s":        412,
+  "job_id":            "<uuid>",
+  "rrss":              { "composite": 0.84, "robustify": 0.78, ... }
+}
+```
+
+**Optional RRSS overlay** — scores the candidate on four resilience
+axes (Robustify / Reliabilify / Solidify / Stabilize), accepts only
+when every configured axis clears its floor AND the composite improves
+by `min_improvement`. Set `rrss.auto_from_history: true` to derive
+axis inputs from the run's `history.json` + rollouts.
+
+### `POST /train/cascade` — gate a skill pipeline
+
+Pure aggregation (no training). Payload:
+
+```json
+{
+  "bot_id": "author/name",
+  "stages": [
+    { "name": "filter",   "score": 0.94 },
+    { "name": "classify", "score": 0.88 },
+    { "name": "draft",    "score": 0.91, "weight": 2.0 }
+  ],
+  "aggregation":         "mean | min | product | weighted_mean",
+  "aggregate_threshold": 0.85,
+  "stage_floor":         0.60
+}
+```
+
+Passes iff every stage clears `stage_floor` AND the aggregate meets
+`aggregate_threshold`. A fluent draft cannot mask a broken filter
+upstream.
+
+### `POST /fitness/arm` — compute lifecycle-weighted fitness
+
+Pure aggregation. Payload:
+
+```json
+{
+  "bot_id": "author/name",
+  "signals": [
+    { "bucket": "acquire",  "delta": 1.0, "kind": "trial_started" },
+    { "bucket": "retain",   "delta": 0.5, "kind": "csat_5" },
+    { "bucket": "monetize", "delta": 2.0, "kind": "plan_upgrade" }
+  ],
+  "weights": { "acquire": 0.3, "retain": 0.5, "monetize": 0.2 }
+}
+```
+
+Rebalance weights over the lifecycle: launch ≈ 0.60/0.30/0.10, growth
+≈ 0.30/0.50/0.20, mature ≈ 0.10/0.40/0.50. Weights are renormalized;
+empty signals return 0 fitness without erroring.
+
+## Repo map
+
+- `README.md` — human overview
+- `AGENTS.md` — AI-agent orientation
+- `EvoSkillOpt_Blueprint.md` — vision, roadmap, KPIs
+- `INSTALL.md`, `USE_CASES.md`, `CONTRIBUTING.md`, `SECURITY.md`
+- `worker/` — HTTP service + RRSS gate + cascade + ARM
+- `scripts/` — training / eval CLIs
+- `configs/` — per-benchmark YAML
+- `examples/` — three runnable bot examples
+- `skillopt/` — **vendored** upstream SkillOpt (MIT, do not edit)
+- `tests/` — pytest suite covering the worker extensions
+- `docs/` — mkdocs source
+
+## How a safe agent should use the API
+
+1. Read [`AGENTS.md`](./AGENTS.md) once for repo conventions.
+2. Call `GET /health` before anything else.
+3. Prefer the pure endpoints (`/train/cascade`, `/fitness/arm`) when
+   training is not strictly required — they return in milliseconds.
+4. On `/train`, respect `gate_passed`: a `false` means the previous
+   skill version stays active. Do not auto-retry on a rejection.
+5. Never commit secrets. Provider API keys live in env only
+   (see `.env.example`).
+
+[arXiv:2605.23904]: https://arxiv.org/abs/2605.23904

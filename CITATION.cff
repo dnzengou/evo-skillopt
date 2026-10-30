@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+message: "If you use evo-skillopt in a published work, please cite it as follows."
+title: "evo-skillopt: text-space skill optimization for production LLM agents"
+abstract: >
+  A self-hostable HTTP service that evolves a bot's Markdown skill file
+  against a held-out eval set using the SkillOpt algorithm. Trains
+  natural-language skill contracts like neural-network weights — epochs,
+  batches, validation gates — without touching model weights, and
+  records every evolution as a git-tracked audit trail.
+type: software
+authors:
+  - name: "evo-skillopt contributors"
+    website: "https://github.com/dnzengou/evo-skillopt"
+repository-code: "https://github.com/dnzengou/evo-skillopt"
+url: "https://dnzengou.github.io/evo-skillopt"
+license: MIT
+keywords:
+  - agent
+  - large-language-models
+  - prompt-optimization
+  - skill-learning
+  - evaluation
+  - agentic
+references:
+  - type: article
+    title: "SkillOpt: optimizing text-space skill contracts for LLM agents"
+    authors:
+      - name: "SkillOpt authors"
+    url: "https://arxiv.org/abs/2605.23904"
+    notes: "The upstream algorithm this project productizes (MIT-licensed)."

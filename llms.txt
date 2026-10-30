@@ -41,6 +41,7 @@ points without crawling the whole repository.
 - `POST /train/cascade`       — aggregate + gate a cascade of per-stage scores
 - `POST /fitness/arm`         — reduce Acquire/Retain/Monetize signals to one fitness
 
+Machine-readable contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) (OpenAPI 3.1).
 Full endpoint docs: [worker/README.md](./worker/README.md).
 
 ## Source entry points

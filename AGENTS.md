@@ -62,6 +62,8 @@ locally is a strong signal CI will pass.
 
 ## HTTP surface (so you don't have to grep for it)
 
+Machine-readable OpenAPI 3.1 contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml).
+
 | Method | Path             | Pure? | Notes                              |
 |--------|------------------|-------|------------------------------------|
 | GET    | `/health`        | yes   | unauthenticated                    |

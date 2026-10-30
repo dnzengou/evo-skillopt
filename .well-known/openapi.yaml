@@ -1,0 +1,323 @@
+openapi: 3.1.0
+info:
+  title: evo-skillopt worker
+  version: 0.2.0
+  summary: Text-space skill optimization for production LLM agents, callable over HTTP.
+  description: |
+    Self-hostable HTTP service that evolves a bot's Markdown skill file
+    against a held-out eval set. Four endpoints: one liveness probe,
+    one that shells out to the vendored SkillOpt trainer, and two pure
+    aggregators (cascade pipeline gating + ARM lifecycle fitness).
+
+    This spec is served as a static file; it is also the canonical
+    machine-readable contract for AI agents calling the worker.
+    See also /AGENTS.md and /.well-known/agents.json.
+  license:
+    name: MIT
+    identifier: MIT
+  contact:
+    url: https://github.com/dnzengou/evo-skillopt/issues
+
+servers:
+  - url: http://localhost:9000
+    description: Local dev
+  - url: https://{app}.fly.dev
+    description: Fly.io self-host
+    variables:
+      app:
+        default: evo-skillopt-worker
+
+security:
+  - bearerAuth: []
+  - {}  # Dev mode: no auth when WORKER_TOKEN is unset
+
+tags:
+  - name: health
+    description: Liveness probes.
+  - name: training
+    description: Endpoints that run the SkillOpt training loop.
+  - name: aggregation
+    description: Pure aggregators — no training, millisecond responses.
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      operationId: getHealth
+      summary: Liveness probe.
+      security: []
+      responses:
+        "200":
+          description: Service is up.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+
+  /train:
+    post:
+      tags: [training]
+      operationId: postTrain
+      summary: Run one SkillOpt training pass.
+      description: |
+        Shells out to `scripts/train.py` with the caller's skill file,
+        eval split, and config. Returns a gate decision plus the new
+        version string. Optional `rrss` overlay replaces the base
+        gate_score_delta with a four-axis resilience composite.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainRequest"
+      responses:
+        "200":
+          description: Training ran; gate decision inside.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrainResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/TrainingFailed" }
+
+  /train/cascade:
+    post:
+      tags: [aggregation]
+      operationId: postTrainCascade
+      summary: Aggregate + gate a cascade of per-stage scores.
+      description: |
+        Pure aggregation. Pass pre-scored stages (from prior /train
+        runs, offline evals, or CI harnesses) and get an aggregate
+        with a gate decision. A fluent downstream stage cannot mask a
+        broken upstream one: gate acceptance requires both stage_floor
+        and aggregate_threshold.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CascadeRequest"
+      responses:
+        "200":
+          description: Cascade evaluated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CascadeResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /fitness/arm:
+    post:
+      tags: [aggregation]
+      operationId: postFitnessArm
+      summary: Reduce Acquire/Retain/Monetize signals to one composite fitness.
+      description: |
+        Pure aggregation. Weights are renormalized; empty signals
+        return 0 fitness without erroring. Rebalance weights over the
+        product lifecycle (launch → growth → mature).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArmRequest"
+      responses:
+        "200":
+          description: Fitness computed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArmResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+
+  responses:
+    BadRequest:
+      description: Malformed JSON body or missing required fields.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing or wrong bearer token (when WORKER_TOKEN is set).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TrainingFailed:
+      description: Training subprocess returned non-zero.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Health:
+      type: object
+      required: [service, status]
+      properties:
+        service: { type: string, example: skillopt-worker }
+        status:  { type: string, example: ok }
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:    { type: string }
+        job_id:   { type: string, format: uuid }
+
+    TrainRequest:
+      type: object
+      required: [bot_id]
+      properties:
+        bot_id:               { type: string, example: acme/support-bot }
+        skill_version:        { type: string, example: 0.1.0, pattern: "^\\d+\\.\\d+\\.\\d+$" }
+        skill_path:           { type: string, example: /data/bots/acme/skills/main.md }
+        eval_split_dir:       { type: string, example: /data/bots/acme/eval }
+        config:               { type: string, example: configs/searchqa/default.yaml }
+        num_epochs:           { type: integer, minimum: 1, default: 1 }
+        gate_min_improvement: { type: number, minimum: 0, default: 0.05 }
+        rrss:                 { $ref: "#/components/schemas/RRSSOverlay" }
+
+    RRSSOverlay:
+      type: object
+      description: Optional resilience-scored gate overlay.
+      properties:
+        auto_from_history:  { type: boolean, default: false,
+                              description: "If true, derive axis inputs from the run's history.json + rollouts." }
+        prev_rollouts_path: { type: string }
+        pass_threshold:     { type: number, default: 0.5 }
+        per_item_scores:    { type: array, items: { type: number } }
+        repeated_scores:    { type: array, items: { type: number } }
+        scores_by_category: { type: object, additionalProperties: { type: array, items: { type: number } } }
+        prev_pass:          { type: array, items: { type: boolean } }
+        cand_pass:          { type: array, items: { type: boolean } }
+        weights:
+          type: object
+          required: [robustify, reliabilify, solidify, stabilize]
+          properties:
+            robustify:    { type: number }
+            reliabilify:  { type: number }
+            solidify:     { type: number }
+            stabilize:    { type: number }
+        axis_floors:
+          type: object
+          additionalProperties: { type: number, minimum: 0, maximum: 1 }
+        min_improvement: { type: number, default: 0 }
+        previous_composite: { type: number, default: 0 }
+
+    TrainResponse:
+      type: object
+      required: [ok, gate_passed, next_version, duration_s]
+      properties:
+        ok:               { type: boolean }
+        gate_passed:      { type: boolean }
+        gate_score_delta: { type: number }
+        next_version:     { type: string }
+        output_dir:       { type: string }
+        duration_s:       { type: integer }
+        job_id:           { type: string, format: uuid }
+        rrss:             { $ref: "#/components/schemas/RRSSResult" }
+
+    RRSSResult:
+      type: object
+      properties:
+        composite:   { type: number }
+        robustify:   { type: number }
+        reliabilify: { type: number }
+        solidify:    { type: number }
+        stabilize:   { type: number }
+        delta:       { type: number }
+        reason:      { type: string }
+
+    CascadeRequest:
+      type: object
+      required: [bot_id, stages]
+      properties:
+        bot_id: { type: string }
+        stages:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [name, score]
+            properties:
+              name:   { type: string }
+              score:  { type: number }
+              weight: { type: number, default: 1.0 }
+        aggregation:
+          type: string
+          enum: [mean, min, product, weighted_mean]
+          default: mean
+        aggregate_threshold: { type: number, default: 0 }
+        stage_floor:         { type: number, default: 0 }
+
+    CascadeResponse:
+      type: object
+      required: [ok, gate_passed, aggregate, aggregation, reason]
+      properties:
+        ok:          { type: boolean }
+        gate_passed: { type: boolean }
+        aggregate:   { type: number }
+        aggregation: { type: string }
+        reason:      { type: string }
+        stages:
+          type: array
+          items:
+            type: object
+            properties:
+              name:   { type: string }
+              score:  { type: number }
+              weight: { type: number }
+        job_id: { type: string, format: uuid }
+
+    ArmRequest:
+      type: object
+      required: [bot_id]
+      properties:
+        bot_id: { type: string }
+        signals:
+          type: array
+          items:
+            type: object
+            required: [bucket, delta]
+            properties:
+              bucket: { type: string, enum: [acquire, retain, monetize] }
+              delta:  { type: number }
+              kind:   { type: string }
+        weights:
+          type: object
+          required: [acquire, retain, monetize]
+          properties:
+            acquire:  { type: number }
+            retain:   { type: number }
+            monetize: { type: number }
+
+    ArmResponse:
+      type: object
+      required: [ok, composite, weights, per_bucket]
+      properties:
+        ok:        { type: boolean }
+        composite: { type: number }
+        weights:
+          type: object
+          properties:
+            acquire:  { type: number }
+            retain:   { type: number }
+            monetize: { type: number }
+        per_bucket:
+          type: array
+          items:
+            type: object
+            properties:
+              bucket:     { type: string }
+              count:      { type: integer }
+              sum_delta:  { type: number }
+              mean_delta: { type: number }
+        job_id: { type: string, format: uuid }

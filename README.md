@@ -110,6 +110,8 @@ Homebrew, Docker, systemd, Fly.io, Kubernetes).
 | [`llms.txt`](./llms.txt)                              | Short LLM-navigable project card ([llmstxt.org](https://llmstxt.org/)) |
 | [`llms-full.txt`](./llms-full.txt)                    | Full LLM-navigable summary with inline API spec         |
 | [`.well-known/agents.json`](./.well-known/agents.json) | Machine-readable manifest of endpoints and concepts    |
+| [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) | OpenAPI 3.1 spec for the worker's HTTP endpoints      |
+| [`CITATION.cff`](./CITATION.cff)                      | Citation metadata (CFF 1.2)                             |
 | [`NOTICE`](./NOTICE)                                  | Third-party attributions                                |
 | [`TRADEMARKS.md`](./TRADEMARKS.md)                    | Trademark & branding notice                             |
 | [`DISCLAIMER.md`](./DISCLAIMER.md)                    | No-warranty statement                                   |

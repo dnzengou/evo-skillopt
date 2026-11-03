@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (agent-era GTM · v1.2 of the Blueprint)
+- **Live-worker agent discovery.** The worker now serves `GET /` (service
+  card JSON), `GET /.well-known/agents.json`, `GET /.well-known/openapi.yaml`,
+  `GET /openapi.yaml`, `GET /llms.txt`, `GET /llms-full.txt`, and
+  `GET /AGENTS.md` from its own root. Any AI agent landing on the
+  live service can self-discover capabilities without a trip back to GitHub.
+- **`GTM.md`** — product-neutral go-to-market playbook for agent-era
+  products. Three audiences (humans, answer engines, agent runtimes),
+  channel mix, metrics, 30-day plan, anti-patterns.
+- **`docs/AI_SEO.md`** — implementation notes on the agent-era SEO
+  surface.
+- **JSON-LD in `docs/index.md`** — `SoftwareApplication` + `HowTo` +
+  `FAQPage` for rich-result eligibility in AI answer engines.
+- **`.github/workflows/publish-docs.yml`** — deploys MkDocs to GitHub
+  Pages so the agents-SEO files are reachable at `site_url`; resolves
+  symlinks under `docs/` into real files before build.
+- **GitHub repo hygiene.** PR template, bug-report + feature-request
+  issue templates, `config.yml` disabling blank issues.
+- **Container update.** Dockerfile now copies the full `worker/` dir
+  (fixes `rrss_gate`/`cascade`/`arm_signals` imports at runtime) and
+  the discovery files to `/app`; sets `DISCOVERY_ROOT=/app`.
+- **Blueprint v1.2.** RRSS gate, auto-derive, cascade, ARM, and the
+  entire agent-era SEO stack ticked as shipped under `v0.2`.
+
 ### Added
 - `worker/` layout — stdlib-only Python HTTP service wrapping SkillOpt's `scripts/train.py`.
 - `worker/Dockerfile` — multi-stage build, non-root user, tini init, healthcheck.

@@ -149,6 +149,13 @@ Version-numbered. Tick capabilities as they ship.
 
 | Capability                                                         | Notes |
 |--------------------------------------------------------------------|-------|
+| ✅ RRSS-scored gate (opt-in `rrss` block on `POST /train`)          | `worker/rrss_gate.py` · four axes, per-axis floors, composite delta |
+| ✅ Auto-derive RRSS inputs from run's history + rollouts            | `worker/rrss_from_history.py` · `rrss.auto_from_history: true` |
+| ✅ Cascade evaluator (`POST /train/cascade`)                        | `worker/cascade.py` · min / mean / product / weighted_mean |
+| ✅ ARM lifecycle fitness (`POST /fitness/arm`)                      | `worker/arm_signals.py` · Acquire / Retain / Monetize buckets |
+| ✅ Agent-discovery endpoints on the live worker                     | `GET /` card · `/.well-known/agents.json` · `/llms.txt` · `/openapi.yaml` |
+| ✅ Agent-era SEO surface (repo + docs site)                         | `AGENTS.md` · `llms.txt` · `llms-full.txt` · `.well-known/{agents.json,openapi.yaml}` · JSON-LD (SoftwareApplication + HowTo + FAQ) · `CITATION.cff` |
+| ✅ MkDocs → GitHub Pages publish workflow                           | `.github/workflows/publish-docs.yml` · serves agent-SEO files at `site_url` |
 | ⬜ Job queue (SQLite-backed) — concurrent bot evolution             | Priority queue; ~200 LOC |
 | ⬜ Git-tracked skill versioning                                     | libgit2 or shell-out `git`; ~300 LOC |
 | ⬜ Cost accounting per evolution (LLM token counter)                | Wrap backend calls; ~100 LOC |
@@ -374,9 +381,40 @@ that decision.
 
 ---
 
+## Agent-era GTM (new in v1.2)
+
+Discovery is now a product feature, not a marketing afterthought.
+Every release ships the agent-SEO stack alongside the code:
+
+- `AGENTS.md` at repo root — short, mechanical orientation for coding
+  agents and LLM crawlers.
+- `llms.txt` + `llms-full.txt` — [llms.txt convention](https://llmstxt.org/)
+  entry points.
+- `.well-known/agents.json` — machine-readable manifest of endpoints,
+  concepts, and entry points.
+- `.well-known/openapi.yaml` — OpenAPI 3.1 contract for every endpoint.
+- JSON-LD `SoftwareApplication` + `HowTo` + `FAQPage` in `README.md`
+  and `docs/index.md` for AI-search answer engines.
+- `CITATION.cff` for academic and agent-reference citations.
+- `GET /`, `GET /.well-known/agents.json`, `GET /llms.txt`,
+  `GET /openapi.yaml` on the **live worker** — any agent that hits
+  the running service self-discovers capabilities without a trip
+  back to GitHub.
+
+Why: in the agent era, half the funnel is read by an LLM, not a
+human. The product that is parseable by an agent wins the agent's
+citation; the product that is cited by agents wins a funnel it costs
+nothing to re-fill.
+
+The full playbook — three audiences (humans, answer engines, agent
+runtimes), channel mix, metrics, 30-day plan, anti-patterns — lives
+in [`GTM.md`](./GTM.md). Implementation notes on the SEO surface are
+in [`docs/AI_SEO.md`](./docs/AI_SEO.md).
+
 ## Changelog
 
 | Version | Date       | Change |
 |---------|------------|--------|
 | 1.0     | 2026-08-09 | Blueprint created. v0.1 shipped. Q1 → Q4 roadmap set. |
 | 1.1     | 2026-08-09 | Scrubbed to product-neutral. Container hardened (multi-stage, non-root, tini). Compose added. Docker healthcheck added. |
+| 1.2     | 2026-11-03 | v0.2 capabilities shipped: RRSS gate, auto-derive, cascade, ARM. Agent-era SEO stack shipped: AGENTS.md, llms.txt, agents.json, OpenAPI, JSON-LD (SoftwareApplication + HowTo + FAQ), CITATION.cff, publish-docs workflow. Live worker now self-discovers via `GET /` card + discovery paths. GTM playbook + AI-SEO notes published. |

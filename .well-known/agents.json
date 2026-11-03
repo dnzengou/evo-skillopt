@@ -27,9 +27,44 @@
   "endpoints": [
     {
       "method": "GET",
+      "path": "/",
+      "auth": "none",
+      "purpose": "service card — name, endpoints, discovery paths, docs link",
+      "idempotent": true
+    },
+    {
+      "method": "GET",
       "path": "/health",
       "auth": "none",
       "purpose": "liveness probe",
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/agents.json",
+      "auth": "none",
+      "purpose": "this manifest",
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/.well-known/openapi.yaml",
+      "auth": "none",
+      "purpose": "OpenAPI 3.1 contract for every endpoint",
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/llms.txt",
+      "auth": "none",
+      "purpose": "llms.txt-convention LLM crawl aid",
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/llms-full.txt",
+      "auth": "none",
+      "purpose": "full self-contained LLM summary",
       "idempotent": true
     },
     {
@@ -72,6 +107,8 @@
     "citation":        "./CITATION.cff",
     "blueprint":       "./EvoSkillOpt_Blueprint.md",
     "glossary":        "./docs/GLOSSARY.md",
+    "gtm_playbook":    "./GTM.md",
+    "ai_seo_notes":    "./docs/AI_SEO.md",
     "worker_readme":   "./worker/README.md",
     "worker_source":   "./worker/skillopt_worker.py"
   },

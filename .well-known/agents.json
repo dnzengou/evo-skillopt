@@ -41,6 +41,13 @@
     },
     {
       "method": "GET",
+      "path": "/metrics",
+      "auth": "none",
+      "purpose": "Prometheus RED-method metrics (503 if prometheus_client not installed)",
+      "idempotent": true
+    },
+    {
+      "method": "GET",
       "path": "/.well-known/agents.json",
       "auth": "none",
       "purpose": "this manifest",

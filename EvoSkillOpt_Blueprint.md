@@ -160,8 +160,8 @@ Version-numbered. Tick capabilities as they ship.
 | ⬜ Git-tracked skill versioning                                     | libgit2 or shell-out `git`; ~300 LOC |
 | ⬜ Cost accounting per evolution (LLM token counter)                | Wrap backend calls; ~100 LOC |
 | ⬜ Rollback endpoint (`POST /bots/{id}/rollback?to=vN`)             | + `GET /bots/{id}/skill` + `.../diff` |
-| ⬜ Structured JSON logs with `bot_id` correlation                   | swap `print` → `logging` + JSON formatter |
-| ⬜ Prometheus `/metrics` endpoint                                   | RED method — rate · errors · duration |
+| ✅ Structured JSON logs with `bot_id` + `job_id` correlation         | `worker/log.py` · one JSON line / record · extras promoted to top-level keys |
+| ✅ Prometheus `/metrics` endpoint                                   | `worker/metrics.py` · RED method + gate + training counters · 503 degradation when `prometheus_client` missing |
 
 ### v0.3 target (Q2 — ~6 weeks)
 

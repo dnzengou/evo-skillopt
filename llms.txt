@@ -41,6 +41,7 @@ its own root AND by the docs site at `site_url`):
 
 - `GET  /`                          — service card JSON
 - `GET  /health`                    — liveness
+- `GET  /metrics`                   — Prometheus exposition (RED metrics; needs `[worker]` extras)
 - `GET  /.well-known/agents.json`   — machine-readable capabilities manifest
 - `GET  /.well-known/openapi.yaml`  — OpenAPI 3.1 contract
 - `GET  /llms.txt`                  — this file

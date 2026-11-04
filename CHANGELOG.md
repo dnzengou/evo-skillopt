@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (observability · v0.2 progress)
+- **`GET /metrics`** — Prometheus RED-method exposition on the worker.
+  Counters + histograms for requests (by method · path · code), gate
+  decisions (base · rrss · cascade — pass/fail), and training outcomes
+  (accepted · rejected · failed · timeout). Degrades gracefully to a
+  503 with an install hint when `prometheus_client` is not installed.
+  High-cardinality paths like `/bots/<id>/skill` are label-collapsed
+  to `/bots/{id}/skill` to bound metric cardinality.
+- **Structured JSON logs** — `worker/log.py` installs a `JsonFormatter`
+  on the root logger. Every log line is a single `{ts, level, logger,
+  msg, ...extras}` object with `bot_id` / `job_id` promoted to top-level
+  fields. Honors `LOG_LEVEL` env. Datadog / Loki / Vector / CloudWatch
+  parse these without further config.
+- **CI tightened** — `pytest` and `ruff` are now authoritative (previously
+  "informational"). `prometheus-client` installed in the test env so the
+  metrics module is exercised with its real dependency. `py_compile`
+  covers every `worker/*.py`.
+
 ### Added (agent-era GTM · v1.2 of the Blueprint)
 - **Live-worker agent discovery.** The worker now serves `GET /` (service
   card JSON), `GET /.well-known/agents.json`, `GET /.well-known/openapi.yaml`,

@@ -48,6 +48,12 @@ from cascade import StageResult, evaluate_cascade  # noqa: E402
 from rrss_from_history import derive_inputs  # noqa: E402
 from rrss_gate import compute_rrss, rrss_gate  # noqa: E402
 
+import metrics as _metrics  # noqa: E402
+from log import get_logger  # noqa: E402
+
+log = get_logger("worker")
+_metrics.init()
+
 WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "").strip()
 OUTPUT_ROOT = Path(os.environ.get("OUTPUT_ROOT", "outputs/evo")).resolve()
 TRAIN_SCRIPT = Path(os.environ.get("TRAIN_SCRIPT", "scripts/train.py")).resolve()
@@ -68,6 +74,10 @@ DISCOVERY_FILES = {
     "/AGENTS.md": ("AGENTS.md", "text/markdown; charset=utf-8"),
 }
 
+SERVICE_CARD_ENDPOINTS_EXTRA = (
+    {"method": "GET", "path": "/metrics", "auth": "none"},
+)
+
 SERVICE_CARD = {
     "service": "evo-skillopt",
     "version": "0.2",
@@ -86,6 +96,7 @@ SERVICE_CARD = {
     },
     "endpoints": [
         {"method": "GET", "path": "/health", "auth": "none"},
+        {"method": "GET", "path": "/metrics", "auth": "none"},
         {"method": "POST", "path": "/train", "auth": "bearer"},
         {"method": "POST", "path": "/train/cascade", "auth": "bearer"},
         {"method": "POST", "path": "/fitness/arm", "auth": "bearer"},
@@ -146,13 +157,17 @@ def run_training(job: dict) -> dict:
         # Reasonable ceiling; long training runs should tune this
         proc = subprocess.run(cmd, capture_output=True, timeout=3600, check=False)
     except subprocess.TimeoutExpired:
+        duration_s = time.time() - start
+        _metrics.record_training("timeout", duration_s)
         return {
             "ok": False, "error": "training-timeout",
-            "duration_s": int(time.time() - start),
+            "duration_s": int(duration_s),
         }
-    duration = int(time.time() - start)
+    duration_s = time.time() - start
+    duration = int(duration_s)
 
     if proc.returncode != 0:
+        _metrics.record_training("failed", duration_s)
         return {
             "ok": False, "error": "training-failed",
             "returncode": proc.returncode,
@@ -162,14 +177,17 @@ def run_training(job: dict) -> dict:
 
     delta = parse_gate_delta(output_dir)
     gate_min = float(job.get("gate_min_improvement", 0.05))
+    base_passed = delta >= gate_min
     result = {
         "ok": True,
-        "gate_passed": delta >= gate_min,
+        "gate_passed": base_passed,
         "gate_score_delta": round(delta, 4),
-        "next_version": next_version if delta >= gate_min else skill_version,
+        "next_version": next_version if base_passed else skill_version,
         "output_dir": str(output_dir),
         "duration_s": duration,
     }
+    _metrics.record_gate("base", base_passed)
+    _metrics.record_training("accepted" if base_passed else "rejected", duration_s)
 
     # Optional RRSS overlay: caller passes ``rrss`` payload with the four
     # axis inputs; the RRSS composite becomes the authoritative gate.
@@ -220,6 +238,7 @@ def run_training(job: dict) -> dict:
             "delta": round(decision.delta, 4),
             "reason": decision.reason,
         }
+        _metrics.record_gate("rrss", decision.passed)
     return result
 
 
@@ -317,6 +336,7 @@ def run_cascade(job: dict) -> dict:
         aggregate_threshold=float(job.get("aggregate_threshold", 0.0)),
         stage_floor=float(job.get("stage_floor", 0.0)),
     )
+    _metrics.record_gate("cascade", outcome.gate_passed)
     return {
         "ok": True,
         "gate_passed": outcome.gate_passed,
@@ -378,59 +398,111 @@ class Handler(BaseHTTPRequestHandler):
             self._write(500, {"error": "discovery-read-failed", "path": path})
         return True
 
-    def do_GET(self) -> None:
+    def _begin(self) -> None:
+        self._t0 = time.time()
+        _metrics.inflight_inc(self.command or "?", self.path)
+
+    def _finish(self, code: int) -> None:
+        dur = time.time() - getattr(self, "_t0", time.time())
+        _metrics.inflight_dec(self.command or "?", self.path)
+        _metrics.record_request(self.command or "?", self.path, code, dur)
+        self._last_code = code
+
+    # Inject around every call by pre/post-hooking do_GET / do_POST.
+    def _dispatch_GET(self) -> int:
         if self.path == "/health":
             self._write(200, {"service": "skillopt-worker", "status": "ok"})
-            return
+            return 200
         if self.path in ("/", ""):
             self._write(200, SERVICE_CARD)
-            return
+            return 200
+        if self.path == "/metrics":
+            body, ctype = _metrics.render_metrics()
+            code = 200 if _metrics.is_available() else 503
+            self._write_bytes(code, body, ctype)
+            return code
         if self._serve_discovery(self.path):
-            return
+            return getattr(self, "_last_code", 200)
         self._write(404, {"error": "not-found"})
+        return 404
 
-    def do_POST(self) -> None:
+    def _dispatch_POST(self) -> int:
         if self.path not in ("/train", "/train/cascade", "/fitness/arm"):
             self._write(404, {"error": "not-found"})
-            return
+            return 404
         if not self._authed():
             self._write(401, {"error": "unauthorized"})
-            return
+            return 401
         length = int(self.headers.get("content-length", "0"))
         if length <= 0 or length > 1_000_000:
             self._write(400, {"error": "bad-body"})
-            return
+            return 400
         try:
             job = json.loads(self.rfile.read(length))
         except json.JSONDecodeError:
             self._write(400, {"error": "invalid-json"})
-            return
+            return 400
         if not isinstance(job, dict) or not job.get("bot_id"):
             self._write(400, {"error": "missing-bot-id"})
-            return
+            return 400
         job_id = str(uuid.uuid4())
         if self.path == "/train/cascade":
-            print(f"[{job_id}] cascade bot={job['bot_id']} stages={len(job.get('stages') or [])}", flush=True)
+            log.info(
+                "cascade",
+                extra={"bot_id": job["bot_id"], "job_id": job_id,
+                       "stages": len(job.get("stages") or [])},
+            )
             result = run_cascade(job)
         elif self.path == "/fitness/arm":
-            print(f"[{job_id}] arm bot={job['bot_id']} signals={len(job.get('signals') or [])}", flush=True)
+            log.info(
+                "arm",
+                extra={"bot_id": job["bot_id"], "job_id": job_id,
+                       "signals": len(job.get("signals") or [])},
+            )
             result = run_arm_fitness(job)
         else:
-            print(f"[{job_id}] training bot={job['bot_id']} v={job.get('skill_version')}", flush=True)
+            log.info(
+                "training",
+                extra={"bot_id": job["bot_id"], "job_id": job_id,
+                       "version": job.get("skill_version")},
+            )
             result = run_training(job)
         result["job_id"] = job_id
         code = 200 if result.get("ok") else 500
         self._write(code, result)
+        return code
+
+    def do_GET(self) -> None:
+        self._begin()
+        self._last_code = 200
+        try:
+            code = self._dispatch_GET()
+        finally:
+            self._finish(getattr(self, "_last_code", 500) if "code" not in locals() else code)
+
+    def do_POST(self) -> None:
+        self._begin()
+        self._last_code = 200
+        try:
+            code = self._dispatch_POST()
+        finally:
+            self._finish(getattr(self, "_last_code", 500) if "code" not in locals() else code)
 
     def log_message(self, fmt: str, *args) -> None:
-        # Route access log through print so container log aggregators pick it up
-        print(f"[worker] {self.address_string()} {fmt % args}", flush=True)
+        log.info("access", extra={"peer": self.address_string(), "line": fmt % args})
 
 
 if __name__ == "__main__":
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"SkillOpt worker listening on :{PORT} (output_root={OUTPUT_ROOT})", flush=True)
+    log.info(
+        "worker-start",
+        extra={
+            "port": PORT, "output_root": str(OUTPUT_ROOT),
+            "discovery_root": str(DISCOVERY_ROOT),
+            "prometheus": _metrics.is_available(),
+        },
+    )
     try:
         server.serve_forever()
     except KeyboardInterrupt:

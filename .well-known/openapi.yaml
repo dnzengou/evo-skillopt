@@ -90,6 +90,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/Health"
 
+  /metrics:
+    get:
+      tags: [health]
+      operationId: getMetrics
+      summary: Prometheus RED-method exposition.
+      description: |
+        Returns Prometheus text-format metrics covering requests
+        (total, duration, in-flight), training outcomes, and gate
+        decisions. If `prometheus_client` is not installed on the
+        worker, returns 503 with a short install hint.
+      security: []
+      responses:
+        "200":
+          description: Prometheus exposition.
+          content:
+            text/plain:
+              schema: { type: string }
+        "503":
+          description: prometheus_client not installed.
+          content:
+            text/plain:
+              schema: { type: string }
+
   /.well-known/agents.json:
     get:
       tags: [discovery]

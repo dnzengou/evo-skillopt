@@ -68,6 +68,7 @@ Machine-readable OpenAPI 3.1 contract: [`.well-known/openapi.yaml`](./.well-know
 |--------|--------------------------------|--------|-------|----------------------------------------------|
 | GET    | `/`                            | none   | yes   | service card JSON (name, endpoints, docs)    |
 | GET    | `/health`                      | none   | yes   | liveness probe                               |
+| GET    | `/metrics`                     | none   | yes   | Prometheus exposition (503 w/o `[worker]`)   |
 | GET    | `/.well-known/agents.json`     | none   | yes   | machine-readable capabilities manifest       |
 | GET    | `/.well-known/openapi.yaml`    | none   | yes   | OpenAPI 3.1 contract                         |
 | GET    | `/openapi.yaml`                | none   | yes   | alias of `/.well-known/openapi.yaml`         |

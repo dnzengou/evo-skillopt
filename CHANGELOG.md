@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (release automation)
+- **`.github/workflows/release.yml`** — tag-driven (`v*.*.*`) release
+  pipeline: builds sdist + wheel with `python -m build`, runs
+  `twine check --strict`, publishes to PyPI via **Trusted Publisher**
+  (OIDC — no stored API tokens), then creates a GitHub Release with
+  the artifacts attached and the matching CHANGELOG section as notes.
+  Manual run via `workflow_dispatch` is build-only (no publish) for
+  pre-release smoke tests.
+- **`RELEASING.md`** — one-time PyPI Trusted Publisher setup (pending
+  publisher, workflow, environment) plus the every-release procedure
+  (bump → changelog → tick blueprint → verify → commit → tag → push).
+
+### Added (rollback endpoint set · v0.2 progress)
+- **`worker/skill_store.py`** — versioned, path-escape-safe file store
+  for bot skill files. Layout: `<slug>/meta.json` (current pointer) +
+  `history.json` (chronological entries) + `v<version>.md` (immutable
+  version content). `put_version` is idempotent on identical content,
+  raises on divergent content for the same version. `slugify` lowercases
+  and replaces `/` with `-`, enforces a strict regex, caps length at 100.
+- **`GET /bots/{id}/skill`** — current skill content + current pointer.
+  Query `?version=X.Y.Z` to fetch a specific version.
+- **`GET /bots/{id}/history`** — version history with `{version, ts,
+  gate_score_delta, source, note}` per entry.
+- **`GET /bots/{id}/diff?from=A.B.C&to=X.Y.Z`** — unified diff between
+  two versions as `text/x-diff`.
+- **`POST /bots/{id}/rollback?to=X.Y.Z`** — point `current` at an older
+  version. Rollbacks are recorded in history with source `"rollback"`.
+  Never destructive. Accepts `to` and `note` via query string or JSON
+  body. Refuses rollback to the current version (409-equivalent 404
+  with explanation) and to non-existent versions.
+- **Discovery surface updated** — AGENTS.md endpoint table, llms.txt,
+  `.well-known/agents.json`, `.well-known/openapi.yaml`, and the
+  service card at `GET /` all list the four new bot endpoints.
+- **Dockerfile** — now creates `/data/bots` with proper ownership and
+  sets `SKILL_STORE_ROOT=/data/bots`.
+- **`.env.example`** — documents `SKILL_STORE_ROOT` and `LOG_LEVEL`.
+
+### Added (observability · v0.2 progress)
+- **`GET /metrics`** — Prometheus RED-method exposition on the worker.
+  Counters + histograms for requests (by method · path · code), gate
+  decisions (base · rrss · cascade — pass/fail), and training outcomes
+  (accepted · rejected · failed · timeout). Degrades gracefully to a
+  503 with an install hint when `prometheus_client` is not installed.
+  High-cardinality paths like `/bots/<id>/skill` are label-collapsed
+  to `/bots/{id}/skill` to bound metric cardinality.
+- **Structured JSON logs** — `worker/log.py` installs a `JsonFormatter`
+  on the root logger. Every log line is a single `{ts, level, logger,
+  msg, ...extras}` object with `bot_id` / `job_id` promoted to top-level
+  fields. Honors `LOG_LEVEL` env. Datadog / Loki / Vector / CloudWatch
+  parse these without further config.
+- **CI tightened** — `pytest` and `ruff` are now authoritative (previously
+  "informational"). `prometheus-client` installed in the test env so the
+  metrics module is exercised with its real dependency. `py_compile`
+  covers every `worker/*.py`.
+
 ### Added (agent-era GTM · v1.2 of the Blueprint)
 - **Live-worker agent discovery.** The worker now serves `GET /` (service
   card JSON), `GET /.well-known/agents.json`, `GET /.well-known/openapi.yaml`,

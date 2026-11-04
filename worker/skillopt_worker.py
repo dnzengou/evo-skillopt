@@ -47,6 +47,20 @@ from arm_signals import Signal, compute_fitness  # noqa: E402
 from cascade import StageResult, evaluate_cascade  # noqa: E402
 from rrss_from_history import derive_inputs  # noqa: E402
 from rrss_gate import compute_rrss, rrss_gate  # noqa: E402
+from skill_store import (  # noqa: E402
+    StoreError,
+    diff_skills,
+    get_current,
+    get_skill,
+    list_versions,
+    rollback as rollback_skill,
+)
+
+import metrics as _metrics  # noqa: E402
+from log import get_logger  # noqa: E402
+
+log = get_logger("worker")
+_metrics.init()
 
 WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "").strip()
 OUTPUT_ROOT = Path(os.environ.get("OUTPUT_ROOT", "outputs/evo")).resolve()
@@ -68,6 +82,10 @@ DISCOVERY_FILES = {
     "/AGENTS.md": ("AGENTS.md", "text/markdown; charset=utf-8"),
 }
 
+SERVICE_CARD_ENDPOINTS_EXTRA = (
+    {"method": "GET", "path": "/metrics", "auth": "none"},
+)
+
 SERVICE_CARD = {
     "service": "evo-skillopt",
     "version": "0.2",
@@ -86,11 +104,18 @@ SERVICE_CARD = {
     },
     "endpoints": [
         {"method": "GET", "path": "/health", "auth": "none"},
+        {"method": "GET", "path": "/metrics", "auth": "none"},
         {"method": "POST", "path": "/train", "auth": "bearer"},
         {"method": "POST", "path": "/train/cascade", "auth": "bearer"},
         {"method": "POST", "path": "/fitness/arm", "auth": "bearer"},
+        {"method": "GET", "path": "/bots/{id}/skill", "auth": "bearer"},
+        {"method": "GET", "path": "/bots/{id}/history", "auth": "bearer"},
+        {"method": "GET", "path": "/bots/{id}/diff", "auth": "bearer"},
+        {"method": "POST", "path": "/bots/{id}/rollback", "auth": "bearer"},
     ],
 }
+
+_BOT_PATH_RE = re.compile(r"^/bots/([^/]+)/(skill|history|diff|rollback)$")
 
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -146,13 +171,17 @@ def run_training(job: dict) -> dict:
         # Reasonable ceiling; long training runs should tune this
         proc = subprocess.run(cmd, capture_output=True, timeout=3600, check=False)
     except subprocess.TimeoutExpired:
+        duration_s = time.time() - start
+        _metrics.record_training("timeout", duration_s)
         return {
             "ok": False, "error": "training-timeout",
-            "duration_s": int(time.time() - start),
+            "duration_s": int(duration_s),
         }
-    duration = int(time.time() - start)
+    duration_s = time.time() - start
+    duration = int(duration_s)
 
     if proc.returncode != 0:
+        _metrics.record_training("failed", duration_s)
         return {
             "ok": False, "error": "training-failed",
             "returncode": proc.returncode,
@@ -162,14 +191,17 @@ def run_training(job: dict) -> dict:
 
     delta = parse_gate_delta(output_dir)
     gate_min = float(job.get("gate_min_improvement", 0.05))
+    base_passed = delta >= gate_min
     result = {
         "ok": True,
-        "gate_passed": delta >= gate_min,
+        "gate_passed": base_passed,
         "gate_score_delta": round(delta, 4),
-        "next_version": next_version if delta >= gate_min else skill_version,
+        "next_version": next_version if base_passed else skill_version,
         "output_dir": str(output_dir),
         "duration_s": duration,
     }
+    _metrics.record_gate("base", base_passed)
+    _metrics.record_training("accepted" if base_passed else "rejected", duration_s)
 
     # Optional RRSS overlay: caller passes ``rrss`` payload with the four
     # axis inputs; the RRSS composite becomes the authoritative gate.
@@ -220,6 +252,7 @@ def run_training(job: dict) -> dict:
             "delta": round(decision.delta, 4),
             "reason": decision.reason,
         }
+        _metrics.record_gate("rrss", decision.passed)
     return result
 
 
@@ -317,6 +350,7 @@ def run_cascade(job: dict) -> dict:
         aggregate_threshold=float(job.get("aggregate_threshold", 0.0)),
         stage_floor=float(job.get("stage_floor", 0.0)),
     )
+    _metrics.record_gate("cascade", outcome.gate_passed)
     return {
         "ok": True,
         "gate_passed": outcome.gate_passed,
@@ -378,59 +412,218 @@ class Handler(BaseHTTPRequestHandler):
             self._write(500, {"error": "discovery-read-failed", "path": path})
         return True
 
-    def do_GET(self) -> None:
-        if self.path == "/health":
-            self._write(200, {"service": "skillopt-worker", "status": "ok"})
-            return
-        if self.path in ("/", ""):
-            self._write(200, SERVICE_CARD)
-            return
-        if self._serve_discovery(self.path):
-            return
-        self._write(404, {"error": "not-found"})
+    def _begin(self) -> None:
+        self._t0 = time.time()
+        _metrics.inflight_inc(self.command or "?", self.path)
 
-    def do_POST(self) -> None:
-        if self.path not in ("/train", "/train/cascade", "/fitness/arm"):
-            self._write(404, {"error": "not-found"})
-            return
+    def _finish(self, code: int) -> None:
+        dur = time.time() - getattr(self, "_t0", time.time())
+        _metrics.inflight_dec(self.command or "?", self.path)
+        _metrics.record_request(self.command or "?", self.path, code, dur)
+        self._last_code = code
+
+    # Inject around every call by pre/post-hooking do_GET / do_POST.
+    def _parse_query(self) -> dict[str, str]:
+        from urllib.parse import parse_qs, urlsplit
+
+        q = urlsplit(self.path).query
+        out: dict[str, str] = {}
+        for k, v in parse_qs(q, keep_blank_values=False).items():
+            if v:
+                out[k] = v[-1]
+        return out
+
+    def _match_bot_path(self) -> tuple[str, str] | None:
+        from urllib.parse import urlsplit
+
+        path = urlsplit(self.path).path
+        m = _BOT_PATH_RE.match(path)
+        if not m:
+            return None
+        return m.group(1), m.group(2)
+
+    def _handle_bot_get(self, slug: str, verb: str) -> int:
         if not self._authed():
             self._write(401, {"error": "unauthorized"})
-            return
+            return 401
+        qs = self._parse_query()
+        try:
+            if verb == "skill":
+                content = get_skill(slug, version=qs.get("version"))
+                current = get_current(slug)
+                body = {
+                    "bot_id": slug.replace("-", "/"),
+                    "version": qs.get("version") or current,
+                    "current": current,
+                    "skill": content,
+                }
+                self._write(200, body)
+                return 200
+            if verb == "history":
+                body = {"bot_id": slug.replace("-", "/"),
+                        "current": get_current(slug),
+                        "versions": list_versions(slug)}
+                self._write(200, body)
+                return 200
+            if verb == "diff":
+                f, t = qs.get("from"), qs.get("to")
+                if not f or not t:
+                    self._write(400, {"error": "diff-requires-from-and-to"})
+                    return 400
+                patch = diff_skills(slug, f, t)
+                self._write_bytes(
+                    200,
+                    patch.encode(),
+                    "text/x-diff; charset=utf-8",
+                )
+                return 200
+        except StoreError as exc:
+            self._write(404, {"error": "store-error", "detail": str(exc)})
+            return 404
+        self._write(404, {"error": "not-found"})
+        return 404
+
+    def _handle_bot_rollback(self, slug: str) -> int:
+        if not self._authed():
+            self._write(401, {"error": "unauthorized"})
+            return 401
+        qs = self._parse_query()
+        # Allow `to` either in query string or JSON body.
+        to_version = qs.get("to", "")
+        note = qs.get("note", "")
+        length = int(self.headers.get("content-length", "0"))
+        if length > 0:
+            if length > 1_000_000:
+                self._write(400, {"error": "bad-body"})
+                return 400
+            try:
+                body = json.loads(self.rfile.read(length))
+            except json.JSONDecodeError:
+                self._write(400, {"error": "invalid-json"})
+                return 400
+            if isinstance(body, dict):
+                to_version = to_version or str(body.get("to", ""))
+                note = note or str(body.get("note", ""))
+        if not to_version:
+            self._write(400, {"error": "rollback-requires-to"})
+            return 400
+        try:
+            entry = rollback_skill(slug, to_version, note=note)
+        except StoreError as exc:
+            self._write(404, {"error": "store-error", "detail": str(exc)})
+            return 404
+        log.info(
+            "rollback",
+            extra={"bot_id": slug.replace("-", "/"), "to": to_version, "note": note},
+        )
+        self._write(200, {
+            "ok": True,
+            "bot_id": slug.replace("-", "/"),
+            "rolled_back_to": to_version,
+            "entry": entry.to_dict(),
+        })
+        return 200
+
+    def _dispatch_GET(self) -> int:
+        if self.path == "/health":
+            self._write(200, {"service": "skillopt-worker", "status": "ok"})
+            return 200
+        if self.path in ("/", ""):
+            self._write(200, SERVICE_CARD)
+            return 200
+        if self.path == "/metrics":
+            body, ctype = _metrics.render_metrics()
+            code = 200 if _metrics.is_available() else 503
+            self._write_bytes(code, body, ctype)
+            return code
+        matched = self._match_bot_path()
+        if matched and matched[1] in ("skill", "history", "diff"):
+            return self._handle_bot_get(*matched)
+        if self._serve_discovery(self.path.split("?", 1)[0]):
+            return getattr(self, "_last_code", 200)
+        self._write(404, {"error": "not-found"})
+        return 404
+
+    def _dispatch_POST(self) -> int:
+        matched = self._match_bot_path()
+        if matched and matched[1] == "rollback":
+            return self._handle_bot_rollback(matched[0])
+        if self.path.split("?", 1)[0] not in ("/train", "/train/cascade", "/fitness/arm"):
+            self._write(404, {"error": "not-found"})
+            return 404
+        if not self._authed():
+            self._write(401, {"error": "unauthorized"})
+            return 401
         length = int(self.headers.get("content-length", "0"))
         if length <= 0 or length > 1_000_000:
             self._write(400, {"error": "bad-body"})
-            return
+            return 400
         try:
             job = json.loads(self.rfile.read(length))
         except json.JSONDecodeError:
             self._write(400, {"error": "invalid-json"})
-            return
+            return 400
         if not isinstance(job, dict) or not job.get("bot_id"):
             self._write(400, {"error": "missing-bot-id"})
-            return
+            return 400
         job_id = str(uuid.uuid4())
         if self.path == "/train/cascade":
-            print(f"[{job_id}] cascade bot={job['bot_id']} stages={len(job.get('stages') or [])}", flush=True)
+            log.info(
+                "cascade",
+                extra={"bot_id": job["bot_id"], "job_id": job_id,
+                       "stages": len(job.get("stages") or [])},
+            )
             result = run_cascade(job)
         elif self.path == "/fitness/arm":
-            print(f"[{job_id}] arm bot={job['bot_id']} signals={len(job.get('signals') or [])}", flush=True)
+            log.info(
+                "arm",
+                extra={"bot_id": job["bot_id"], "job_id": job_id,
+                       "signals": len(job.get("signals") or [])},
+            )
             result = run_arm_fitness(job)
         else:
-            print(f"[{job_id}] training bot={job['bot_id']} v={job.get('skill_version')}", flush=True)
+            log.info(
+                "training",
+                extra={"bot_id": job["bot_id"], "job_id": job_id,
+                       "version": job.get("skill_version")},
+            )
             result = run_training(job)
         result["job_id"] = job_id
         code = 200 if result.get("ok") else 500
         self._write(code, result)
+        return code
+
+    def do_GET(self) -> None:
+        self._begin()
+        self._last_code = 200
+        try:
+            code = self._dispatch_GET()
+        finally:
+            self._finish(getattr(self, "_last_code", 500) if "code" not in locals() else code)
+
+    def do_POST(self) -> None:
+        self._begin()
+        self._last_code = 200
+        try:
+            code = self._dispatch_POST()
+        finally:
+            self._finish(getattr(self, "_last_code", 500) if "code" not in locals() else code)
 
     def log_message(self, fmt: str, *args) -> None:
-        # Route access log through print so container log aggregators pick it up
-        print(f"[worker] {self.address_string()} {fmt % args}", flush=True)
+        log.info("access", extra={"peer": self.address_string(), "line": fmt % args})
 
 
 if __name__ == "__main__":
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
-    print(f"SkillOpt worker listening on :{PORT} (output_root={OUTPUT_ROOT})", flush=True)
+    log.info(
+        "worker-start",
+        extra={
+            "port": PORT, "output_root": str(OUTPUT_ROOT),
+            "discovery_root": str(DISCOVERY_ROOT),
+            "prometheus": _metrics.is_available(),
+        },
+    )
     try:
         server.serve_forever()
     except KeyboardInterrupt:

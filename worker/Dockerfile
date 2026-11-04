@@ -49,11 +49,12 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     OUTPUT_ROOT=/data/outputs \
+    SKILL_STORE_ROOT=/data/bots \
     TRAIN_SCRIPT=/app/scripts/train.py \
     DISCOVERY_ROOT=/app \
     PORT=9000
 
-RUN mkdir -p /data/outputs && chown -R app:app /data /app
+RUN mkdir -p /data/outputs /data/bots && chown -R app:app /data /app
 
 USER app
 EXPOSE 9000

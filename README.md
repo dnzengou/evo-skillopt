@@ -99,6 +99,7 @@ Homebrew, Docker, systemd, Fly.io, Kubernetes).
 | File                                                  | What                                                    |
 |-------------------------------------------------------|---------------------------------------------------------|
 | [`INSTALL.md`](./INSTALL.md)                          | Standalone install — desktop, server, cloud, container  |
+| [`RELEASING.md`](./RELEASING.md)                      | Cut a new release (PyPI via OIDC + GitHub Release)      |
 | [`USE_CASES.md`](./USE_CASES.md)                      | Low-hanging-fruit patterns with ROI math                |
 | [`GTM.md`](./GTM.md)                                  | Go-to-market in the agent era — playbook, channels, metrics |
 | [`EvoSkillOpt_Blueprint.md`](./EvoSkillOpt_Blueprint.md) | Living roadmap · capabilities · KPIs · v0.1 → v1.0   |

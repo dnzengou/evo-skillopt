@@ -90,6 +90,106 @@ paths:
               schema:
                 $ref: "#/components/schemas/Health"
 
+  /bots/{id}/skill:
+    get:
+      tags: [training]
+      operationId: getBotSkill
+      summary: Current skill file for a bot (or a specific version).
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+        - { in: query, name: version, schema: { type: string, pattern: '^\d+\.\d+\.\d+$' } }
+      responses:
+        "200":
+          description: Skill content + current pointer.
+          content:
+            application/json:
+              schema: { type: object }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /bots/{id}/history:
+    get:
+      tags: [training]
+      operationId: getBotHistory
+      summary: Versioned history for a bot — per-version gate deltas and sources.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Version history.
+          content:
+            application/json:
+              schema: { type: object }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /bots/{id}/diff:
+    get:
+      tags: [training]
+      operationId: getBotDiff
+      summary: Unified diff between two versions of a bot's skill.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+        - { in: query, name: from, required: true, schema: { type: string } }
+        - { in: query, name: to,   required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Unified diff.
+          content:
+            text/x-diff:
+              schema: { type: string }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /bots/{id}/rollback:
+    post:
+      tags: [training]
+      operationId: postBotRollback
+      summary: Point current at an existing older version. Never destructive.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+        - { in: query, name: to,   required: false, schema: { type: string } }
+        - { in: query, name: note, required: false, schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                to:   { type: string, pattern: '^\d+\.\d+\.\d+$' }
+                note: { type: string }
+      responses:
+        "200":
+          description: Rollback accepted; history entry recorded.
+          content:
+            application/json:
+              schema: { type: object }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /metrics:
+    get:
+      tags: [health]
+      operationId: getMetrics
+      summary: Prometheus RED-method exposition.
+      description: |
+        Returns Prometheus text-format metrics covering requests
+        (total, duration, in-flight), training outcomes, and gate
+        decisions. If `prometheus_client` is not installed on the
+        worker, returns 503 with a short install hint.
+      security: []
+      responses:
+        "200":
+          description: Prometheus exposition.
+          content:
+            text/plain:
+              schema: { type: string }
+        "503":
+          description: prometheus_client not installed.
+          content:
+            text/plain:
+              schema: { type: string }
+
   /.well-known/agents.json:
     get:
       tags: [discovery]

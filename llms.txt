@@ -41,6 +41,7 @@ its own root AND by the docs site at `site_url`):
 
 - `GET  /`                          — service card JSON
 - `GET  /health`                    — liveness
+- `GET  /metrics`                   — Prometheus exposition (RED metrics; needs `[worker]` extras)
 - `GET  /.well-known/agents.json`   — machine-readable capabilities manifest
 - `GET  /.well-known/openapi.yaml`  — OpenAPI 3.1 contract
 - `GET  /llms.txt`                  — this file
@@ -52,6 +53,10 @@ Operational endpoints (bearer auth when `WORKER_TOKEN` is set):
 - `POST /train`                     — one training pass; optional `rrss` overlay
 - `POST /train/cascade`             — aggregate + gate a cascade of per-stage scores
 - `POST /fitness/arm`               — reduce Acquire/Retain/Monetize signals to one fitness
+- `GET  /bots/{slug}/skill`         — current skill (or `?version=X.Y.Z`)
+- `GET  /bots/{slug}/history`       — versioned history with gate deltas
+- `GET  /bots/{slug}/diff`          — unified diff: `?from=X.Y.Z&to=A.B.C`
+- `POST /bots/{slug}/rollback`      — rollback current to `?to=X.Y.Z`
 
 Machine-readable contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) (OpenAPI 3.1).
 Full endpoint docs: [worker/README.md](./worker/README.md).

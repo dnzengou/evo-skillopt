@@ -1,0 +1,106 @@
+name: release
+
+# Builds sdist + wheel on a tag push, publishes to PyPI via Trusted
+# Publisher (OIDC — no API tokens, no secrets stored). Also creates
+# a GitHub Release with the built artifacts attached.
+#
+# One-time setup required on PyPI:
+#   https://pypi.org/manage/account/publishing/
+#   - Project: evo-skillopt (reserve the name with a 0.0.0 sdist first
+#     if someone else may try to claim it)
+#   - Owner:   dnzengou
+#   - Repo:    evo-skillopt
+#   - Workflow: release.yml
+#   - Environment: pypi
+#
+# Also create a GitHub environment named "pypi" with this workflow
+# allowed to deploy to it (Settings → Environments → pypi).
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "git ref to release (branch or tag)"
+        required: true
+        default: "main"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build sdist + wheel
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: install build + twine
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+      - name: build
+        run: python -m build
+      - name: twine check
+        run: python -m twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-to-pypi:
+    name: publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: pypi
+      url: https://pypi.org/project/evo-skillopt/
+    permissions:
+      id-token: write          # mandatory for Trusted Publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: true
+          # repository-url left unset → publishes to PyPI (not TestPyPI)
+
+  github-release:
+    name: create GitHub release
+    needs: publish-to-pypi
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write          # create release + attach artifacts
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF##*/}"
+          # Pull the matching section out of CHANGELOG.md if we can,
+          # otherwise fall back to a one-line summary.
+          NOTES=$(awk -v tag="$TAG" '
+            $0 ~ "^## \\[" substr(tag, 2) "\\]" { show=1; next }
+            show && /^## \[/ { show=0 }
+            show
+          ' CHANGELOG.md)
+          [ -z "$NOTES" ] && NOTES="Release $TAG"
+          gh release create "$TAG" dist/* --title "$TAG" --notes "$NOTES"

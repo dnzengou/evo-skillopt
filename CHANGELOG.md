@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (release automation)
+- **`.github/workflows/release.yml`** — tag-driven (`v*.*.*`) release
+  pipeline: builds sdist + wheel with `python -m build`, runs
+  `twine check --strict`, publishes to PyPI via **Trusted Publisher**
+  (OIDC — no stored API tokens), then creates a GitHub Release with
+  the artifacts attached and the matching CHANGELOG section as notes.
+  Manual run via `workflow_dispatch` is build-only (no publish) for
+  pre-release smoke tests.
+- **`RELEASING.md`** — one-time PyPI Trusted Publisher setup (pending
+  publisher, workflow, environment) plus the every-release procedure
+  (bump → changelog → tick blueprint → verify → commit → tag → push).
+
 ### Added (rollback endpoint set · v0.2 progress)
 - **`worker/skill_store.py`** — versioned, path-escape-safe file store
   for bot skill files. Layout: `<slug>/meta.json` (current pointer) +

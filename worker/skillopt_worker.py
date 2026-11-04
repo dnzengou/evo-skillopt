@@ -47,6 +47,14 @@ from arm_signals import Signal, compute_fitness  # noqa: E402
 from cascade import StageResult, evaluate_cascade  # noqa: E402
 from rrss_from_history import derive_inputs  # noqa: E402
 from rrss_gate import compute_rrss, rrss_gate  # noqa: E402
+from skill_store import (  # noqa: E402
+    StoreError,
+    diff_skills,
+    get_current,
+    get_skill,
+    list_versions,
+    rollback as rollback_skill,
+)
 
 import metrics as _metrics  # noqa: E402
 from log import get_logger  # noqa: E402
@@ -100,8 +108,14 @@ SERVICE_CARD = {
         {"method": "POST", "path": "/train", "auth": "bearer"},
         {"method": "POST", "path": "/train/cascade", "auth": "bearer"},
         {"method": "POST", "path": "/fitness/arm", "auth": "bearer"},
+        {"method": "GET", "path": "/bots/{id}/skill", "auth": "bearer"},
+        {"method": "GET", "path": "/bots/{id}/history", "auth": "bearer"},
+        {"method": "GET", "path": "/bots/{id}/diff", "auth": "bearer"},
+        {"method": "POST", "path": "/bots/{id}/rollback", "auth": "bearer"},
     ],
 }
+
+_BOT_PATH_RE = re.compile(r"^/bots/([^/]+)/(skill|history|diff|rollback)$")
 
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -409,6 +423,107 @@ class Handler(BaseHTTPRequestHandler):
         self._last_code = code
 
     # Inject around every call by pre/post-hooking do_GET / do_POST.
+    def _parse_query(self) -> dict[str, str]:
+        from urllib.parse import parse_qs, urlsplit
+
+        q = urlsplit(self.path).query
+        out: dict[str, str] = {}
+        for k, v in parse_qs(q, keep_blank_values=False).items():
+            if v:
+                out[k] = v[-1]
+        return out
+
+    def _match_bot_path(self) -> tuple[str, str] | None:
+        from urllib.parse import urlsplit
+
+        path = urlsplit(self.path).path
+        m = _BOT_PATH_RE.match(path)
+        if not m:
+            return None
+        return m.group(1), m.group(2)
+
+    def _handle_bot_get(self, slug: str, verb: str) -> int:
+        if not self._authed():
+            self._write(401, {"error": "unauthorized"})
+            return 401
+        qs = self._parse_query()
+        try:
+            if verb == "skill":
+                content = get_skill(slug, version=qs.get("version"))
+                current = get_current(slug)
+                body = {
+                    "bot_id": slug.replace("-", "/"),
+                    "version": qs.get("version") or current,
+                    "current": current,
+                    "skill": content,
+                }
+                self._write(200, body)
+                return 200
+            if verb == "history":
+                body = {"bot_id": slug.replace("-", "/"),
+                        "current": get_current(slug),
+                        "versions": list_versions(slug)}
+                self._write(200, body)
+                return 200
+            if verb == "diff":
+                f, t = qs.get("from"), qs.get("to")
+                if not f or not t:
+                    self._write(400, {"error": "diff-requires-from-and-to"})
+                    return 400
+                patch = diff_skills(slug, f, t)
+                self._write_bytes(
+                    200,
+                    patch.encode(),
+                    "text/x-diff; charset=utf-8",
+                )
+                return 200
+        except StoreError as exc:
+            self._write(404, {"error": "store-error", "detail": str(exc)})
+            return 404
+        self._write(404, {"error": "not-found"})
+        return 404
+
+    def _handle_bot_rollback(self, slug: str) -> int:
+        if not self._authed():
+            self._write(401, {"error": "unauthorized"})
+            return 401
+        qs = self._parse_query()
+        # Allow `to` either in query string or JSON body.
+        to_version = qs.get("to", "")
+        note = qs.get("note", "")
+        length = int(self.headers.get("content-length", "0"))
+        if length > 0:
+            if length > 1_000_000:
+                self._write(400, {"error": "bad-body"})
+                return 400
+            try:
+                body = json.loads(self.rfile.read(length))
+            except json.JSONDecodeError:
+                self._write(400, {"error": "invalid-json"})
+                return 400
+            if isinstance(body, dict):
+                to_version = to_version or str(body.get("to", ""))
+                note = note or str(body.get("note", ""))
+        if not to_version:
+            self._write(400, {"error": "rollback-requires-to"})
+            return 400
+        try:
+            entry = rollback_skill(slug, to_version, note=note)
+        except StoreError as exc:
+            self._write(404, {"error": "store-error", "detail": str(exc)})
+            return 404
+        log.info(
+            "rollback",
+            extra={"bot_id": slug.replace("-", "/"), "to": to_version, "note": note},
+        )
+        self._write(200, {
+            "ok": True,
+            "bot_id": slug.replace("-", "/"),
+            "rolled_back_to": to_version,
+            "entry": entry.to_dict(),
+        })
+        return 200
+
     def _dispatch_GET(self) -> int:
         if self.path == "/health":
             self._write(200, {"service": "skillopt-worker", "status": "ok"})
@@ -421,13 +536,19 @@ class Handler(BaseHTTPRequestHandler):
             code = 200 if _metrics.is_available() else 503
             self._write_bytes(code, body, ctype)
             return code
-        if self._serve_discovery(self.path):
+        matched = self._match_bot_path()
+        if matched and matched[1] in ("skill", "history", "diff"):
+            return self._handle_bot_get(*matched)
+        if self._serve_discovery(self.path.split("?", 1)[0]):
             return getattr(self, "_last_code", 200)
         self._write(404, {"error": "not-found"})
         return 404
 
     def _dispatch_POST(self) -> int:
-        if self.path not in ("/train", "/train/cascade", "/fitness/arm"):
+        matched = self._match_bot_path()
+        if matched and matched[1] == "rollback":
+            return self._handle_bot_rollback(matched[0])
+        if self.path.split("?", 1)[0] not in ("/train", "/train/cascade", "/fitness/arm"):
             self._write(404, {"error": "not-found"})
             return 404
         if not self._authed():

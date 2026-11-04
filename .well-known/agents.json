@@ -95,6 +95,34 @@
       "auth": "bearer",
       "purpose": "reduce Acquire/Retain/Monetize signals to one composite fitness",
       "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/bots/{id}/skill",
+      "auth": "bearer",
+      "purpose": "current skill file (or ?version=X.Y.Z for a specific one)",
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/bots/{id}/history",
+      "auth": "bearer",
+      "purpose": "versioned history with per-version gate_score_delta and source",
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/bots/{id}/diff",
+      "auth": "bearer",
+      "purpose": "unified diff between two versions — ?from=X.Y.Z&to=A.B.C",
+      "idempotent": true
+    },
+    {
+      "method": "POST",
+      "path": "/bots/{id}/rollback",
+      "auth": "bearer",
+      "purpose": "point current at an existing older version; never destructive",
+      "idempotent": false
     }
   ],
   "concepts": {

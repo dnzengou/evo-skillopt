@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (rollback endpoint set · v0.2 progress)
+- **`worker/skill_store.py`** — versioned, path-escape-safe file store
+  for bot skill files. Layout: `<slug>/meta.json` (current pointer) +
+  `history.json` (chronological entries) + `v<version>.md` (immutable
+  version content). `put_version` is idempotent on identical content,
+  raises on divergent content for the same version. `slugify` lowercases
+  and replaces `/` with `-`, enforces a strict regex, caps length at 100.
+- **`GET /bots/{id}/skill`** — current skill content + current pointer.
+  Query `?version=X.Y.Z` to fetch a specific version.
+- **`GET /bots/{id}/history`** — version history with `{version, ts,
+  gate_score_delta, source, note}` per entry.
+- **`GET /bots/{id}/diff?from=A.B.C&to=X.Y.Z`** — unified diff between
+  two versions as `text/x-diff`.
+- **`POST /bots/{id}/rollback?to=X.Y.Z`** — point `current` at an older
+  version. Rollbacks are recorded in history with source `"rollback"`.
+  Never destructive. Accepts `to` and `note` via query string or JSON
+  body. Refuses rollback to the current version (409-equivalent 404
+  with explanation) and to non-existent versions.
+- **Discovery surface updated** — AGENTS.md endpoint table, llms.txt,
+  `.well-known/agents.json`, `.well-known/openapi.yaml`, and the
+  service card at `GET /` all list the four new bot endpoints.
+- **Dockerfile** — now creates `/data/bots` with proper ownership and
+  sets `SKILL_STORE_ROOT=/data/bots`.
+- **`.env.example`** — documents `SKILL_STORE_ROOT` and `LOG_LEVEL`.
+
 ### Added (observability · v0.2 progress)
 - **`GET /metrics`** — Prometheus RED-method exposition on the worker.
   Counters + histograms for requests (by method · path · code), gate

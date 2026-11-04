@@ -78,6 +78,10 @@ Machine-readable OpenAPI 3.1 contract: [`.well-known/openapi.yaml`](./.well-know
 | POST   | `/train`                       | bearer | no    | shells out to `scripts/train.py`             |
 | POST   | `/train/cascade`               | bearer | yes   | aggregate pre-scored stages                  |
 | POST   | `/fitness/arm`                 | bearer | yes   | reduce ARM signals to fitness                |
+| GET    | `/bots/{id}/skill`             | bearer | yes   | current skill text (or `?version=X.Y.Z`)     |
+| GET    | `/bots/{id}/history`           | bearer | yes   | version history + gate deltas                |
+| GET    | `/bots/{id}/diff`              | bearer | yes   | unified diff — `?from=X.Y.Z&to=A.B.C`        |
+| POST   | `/bots/{id}/rollback`          | bearer | no    | point `current` at an older version          |
 
 Bearer auth is required on POST endpoints when `WORKER_TOKEN` is set
 (dev mode = empty token = no auth). Discovery GETs are always

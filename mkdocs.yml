@@ -62,6 +62,7 @@ nav:
   - evo-skillopt:
     - Concept: CONCEPT.md
     - Glossary: GLOSSARY.md
+    - AI-era SEO notes: AI_SEO.md
   - Getting Started (upstream SkillOpt reference):
     - Installation: guide/installation.md
     - First Experiment: guide/first-experiment.md

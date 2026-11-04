@@ -64,15 +64,24 @@ locally is a strong signal CI will pass.
 
 Machine-readable OpenAPI 3.1 contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml).
 
-| Method | Path             | Pure? | Notes                              |
-|--------|------------------|-------|------------------------------------|
-| GET    | `/health`        | yes   | unauthenticated                    |
-| POST   | `/train`         | no    | shells out to `scripts/train.py`   |
-| POST   | `/train/cascade` | yes   | aggregate pre-scored stages        |
-| POST   | `/fitness/arm`   | yes   | reduce ARM signals to fitness      |
+| Method | Path                           | Auth   | Pure? | Notes                                        |
+|--------|--------------------------------|--------|-------|----------------------------------------------|
+| GET    | `/`                            | none   | yes   | service card JSON (name, endpoints, docs)    |
+| GET    | `/health`                      | none   | yes   | liveness probe                               |
+| GET    | `/.well-known/agents.json`     | none   | yes   | machine-readable capabilities manifest       |
+| GET    | `/.well-known/openapi.yaml`    | none   | yes   | OpenAPI 3.1 contract                         |
+| GET    | `/openapi.yaml`                | none   | yes   | alias of `/.well-known/openapi.yaml`         |
+| GET    | `/llms.txt`                    | none   | yes   | llms.txt-convention LLM crawl aid            |
+| GET    | `/llms-full.txt`               | none   | yes   | full self-contained LLM summary              |
+| GET    | `/AGENTS.md`                   | none   | yes   | this file (for agents lacking repo access)   |
+| POST   | `/train`                       | bearer | no    | shells out to `scripts/train.py`             |
+| POST   | `/train/cascade`               | bearer | yes   | aggregate pre-scored stages                  |
+| POST   | `/fitness/arm`                 | bearer | yes   | reduce ARM signals to fitness                |
 
 Bearer auth is required on POST endpoints when `WORKER_TOKEN` is set
-(dev mode = empty token = no auth).
+(dev mode = empty token = no auth). Discovery GETs are always
+unauthenticated — they're the first thing an agent that just
+discovered the service should hit.
 
 ## Things to leave alone
 

@@ -100,9 +100,11 @@ Homebrew, Docker, systemd, Fly.io, Kubernetes).
 |-------------------------------------------------------|---------------------------------------------------------|
 | [`INSTALL.md`](./INSTALL.md)                          | Standalone install — desktop, server, cloud, container  |
 | [`USE_CASES.md`](./USE_CASES.md)                      | Low-hanging-fruit patterns with ROI math                |
+| [`GTM.md`](./GTM.md)                                  | Go-to-market in the agent era — playbook, channels, metrics |
 | [`EvoSkillOpt_Blueprint.md`](./EvoSkillOpt_Blueprint.md) | Living roadmap · capabilities · KPIs · v0.1 → v1.0   |
 | [`docs/CONCEPT.md`](./docs/CONCEPT.md)                | Core concept in depth                                   |
 | [`docs/GLOSSARY.md`](./docs/GLOSSARY.md)              | Terminology                                             |
+| [`docs/AI_SEO.md`](./docs/AI_SEO.md)                  | Agent-era SEO implementation notes                      |
 | [`worker/README.md`](./worker/README.md)              | Worker operations reference                             |
 | [`CONTRIBUTING.md`](./CONTRIBUTING.md)                | How to contribute                                       |
 | [`SECURITY.md`](./SECURITY.md)                        | How to report vulnerabilities                           |
@@ -115,6 +117,25 @@ Homebrew, Docker, systemd, Fly.io, Kubernetes).
 | [`NOTICE`](./NOTICE)                                  | Third-party attributions                                |
 | [`TRADEMARKS.md`](./TRADEMARKS.md)                    | Trademark & branding notice                             |
 | [`DISCLAIMER.md`](./DISCLAIMER.md)                    | No-warranty statement                                   |
+
+## For AI agents
+
+Any agent landing on this project — a coding assistant, an LLM
+answer engine, or an autonomous runtime — can self-discover it in
+one fetch. Both the GitHub repo and the **live worker** serve the
+same canonical artifacts:
+
+| Agent-discovery path                        | From GitHub | From live worker | From docs site |
+|---------------------------------------------|:-----------:|:----------------:|:--------------:|
+| `AGENTS.md`                                 | ✓           | `GET /AGENTS.md` | ✓              |
+| `llms.txt`                                  | ✓           | `GET /llms.txt`  | ✓              |
+| `llms-full.txt`                             | ✓           | `GET /llms-full.txt` | ✓          |
+| `.well-known/agents.json`                   | ✓           | `GET /.well-known/agents.json` | ✓ |
+| `.well-known/openapi.yaml`                  | ✓           | `GET /.well-known/openapi.yaml` | ✓ |
+| Service card (name, endpoints, docs URL)    |             | `GET /`          |                |
+
+See [`GTM.md`](./GTM.md) for the thinking behind this and
+[`docs/AI_SEO.md`](./docs/AI_SEO.md) for implementation notes.
 
 ## Structure
 

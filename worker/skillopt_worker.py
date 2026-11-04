@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
 """
-SkillOpt worker — bridges evo-metaclaw ↔ SkillOpt training loop.
+evo-skillopt worker — productized SkillOpt training loop as an HTTP service.
 
-Listens for `POST /train` from evo-metaclaw with:
+Any agent runtime calls `POST /train` with:
   {
     "bot_id":          "author/name",
     "skill_version":   "0.1.4",
     "skill_path":      "/data/bots/author-name/skills/main.md",
     "eval_split_dir":  "/data/bots/author-name/eval",
-    "config":          "configs/searchqa/default.yaml",   # or bot-supplied
+    "config":          "configs/searchqa/default.yaml",   # or caller-supplied
     "num_epochs":      1
   }
 
-Responds with:
-  {
-    "ok":              true,
-    "gate_passed":     true,
-    "gate_score_delta": 0.073,
-    "next_version":    "0.1.5",
-    "output_dir":      "outputs/author-name-v0.1.5-<ts>",
-    "duration_s":      412
-  }
+The worker responds with gate outcome + next version. Pure endpoints
+(`/train/cascade`, `/fitness/arm`) aggregate pre-computed scores
+without shelling out to training.
 
-Deployment: run on same host as `scripts/train.py`. Not exposed publicly
-— evo-metaclaw calls it over the private Fly.io 6PN network via the
-service's internal DNS name.
+Agent discovery (unauthenticated, read-only):
+  GET /                            — service card JSON (name, endpoints, docs)
+  GET /.well-known/agents.json     — machine-readable capabilities manifest
+  GET /llms.txt                    — llms.txt-convention LLM crawl aid
+  GET /openapi.yaml                — OpenAPI 3.1 contract for every endpoint
+
+These are served from `DISCOVERY_ROOT` (the repo root by default) so any
+agent that hits the live worker can self-discover everything it needs
+to call the API safely — no out-of-band docs required.
 
 Zero external deps: stdlib only (http.server, json, subprocess).
 """
@@ -52,6 +52,45 @@ WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "").strip()
 OUTPUT_ROOT = Path(os.environ.get("OUTPUT_ROOT", "outputs/evo")).resolve()
 TRAIN_SCRIPT = Path(os.environ.get("TRAIN_SCRIPT", "scripts/train.py")).resolve()
 PORT = int(os.environ.get("PORT", "9000"))
+
+# Repo root (or whatever directory holds llms.txt + .well-known/).
+# In the container this is /app; in dev it's two levels up from this file.
+DISCOVERY_ROOT = Path(os.environ.get("DISCOVERY_ROOT", _HERE.parent)).resolve()
+
+# Static files served under /.well-known and the repo-root discovery paths.
+# Mapped { request_path: (file_path_relative_to_DISCOVERY_ROOT, content_type) }.
+DISCOVERY_FILES = {
+    "/llms.txt": ("llms.txt", "text/plain; charset=utf-8"),
+    "/llms-full.txt": ("llms-full.txt", "text/plain; charset=utf-8"),
+    "/.well-known/agents.json": (".well-known/agents.json", "application/json"),
+    "/.well-known/openapi.yaml": (".well-known/openapi.yaml", "application/yaml"),
+    "/openapi.yaml": (".well-known/openapi.yaml", "application/yaml"),
+    "/AGENTS.md": ("AGENTS.md", "text/markdown; charset=utf-8"),
+}
+
+SERVICE_CARD = {
+    "service": "evo-skillopt",
+    "version": "0.2",
+    "description": (
+        "Text-space skill optimization for production LLM agents. "
+        "Evolves a Markdown skill file against a held-out eval set, "
+        "over HTTP, without touching model weights."
+    ),
+    "docs": "https://github.com/dnzengou/evo-skillopt",
+    "discovery": {
+        "agents_manifest": "/.well-known/agents.json",
+        "openapi": "/.well-known/openapi.yaml",
+        "llms_txt": "/llms.txt",
+        "llms_full": "/llms-full.txt",
+        "agent_orientation": "/AGENTS.md",
+    },
+    "endpoints": [
+        {"method": "GET", "path": "/health", "auth": "none"},
+        {"method": "POST", "path": "/train", "auth": "bearer"},
+        {"method": "POST", "path": "/train/cascade", "auth": "bearer"},
+        {"method": "POST", "path": "/fitness/arm", "auth": "bearer"},
+    ],
+}
 
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -306,11 +345,49 @@ class Handler(BaseHTTPRequestHandler):
         auth = self.headers.get("authorization", "")
         return auth.startswith("Bearer ") and auth[7:] == WORKER_TOKEN
 
+    def _write_bytes(self, code: int, body: bytes, content_type: str) -> None:
+        self.send_response(code)
+        self.send_header("content-type", content_type)
+        self.send_header("content-length", str(len(body)))
+        # Let LLM crawlers and agent registries cache these for a few hours.
+        if code == 200:
+            self.send_header("cache-control", "public, max-age=3600")
+            self.send_header("access-control-allow-origin", "*")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _serve_discovery(self, path: str) -> bool:
+        """Serve a static discovery file; return True if handled."""
+        entry = DISCOVERY_FILES.get(path)
+        if entry is None:
+            return False
+        rel, ctype = entry
+        fp = (DISCOVERY_ROOT / rel).resolve()
+        # Prevent path-escape tricks — must sit under DISCOVERY_ROOT.
+        try:
+            fp.relative_to(DISCOVERY_ROOT)
+        except ValueError:
+            self._write(404, {"error": "not-found"})
+            return True
+        if not fp.exists() or not fp.is_file():
+            self._write(404, {"error": "discovery-file-missing", "path": path})
+            return True
+        try:
+            self._write_bytes(200, fp.read_bytes(), ctype)
+        except OSError:
+            self._write(500, {"error": "discovery-read-failed", "path": path})
+        return True
+
     def do_GET(self) -> None:
         if self.path == "/health":
             self._write(200, {"service": "skillopt-worker", "status": "ok"})
-        else:
-            self._write(404, {"error": "not-found"})
+            return
+        if self.path in ("/", ""):
+            self._write(200, SERVICE_CARD)
+            return
+        if self._serve_discovery(self.path):
+            return
+        self._write(404, {"error": "not-found"})
 
     def do_POST(self) -> None:
         if self.path not in ("/train", "/train/cascade", "/fitness/arm"):

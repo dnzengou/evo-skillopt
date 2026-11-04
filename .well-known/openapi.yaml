@@ -34,12 +34,48 @@ security:
 tags:
   - name: health
     description: Liveness probes.
+  - name: discovery
+    description: Agent-discovery endpoints — unauthenticated, read-only.
   - name: training
     description: Endpoints that run the SkillOpt training loop.
   - name: aggregation
     description: Pure aggregators — no training, millisecond responses.
 
 paths:
+  /:
+    get:
+      tags: [discovery]
+      operationId: getServiceCard
+      summary: Service card — name, endpoints, discovery paths, docs link.
+      description: |
+        Returns a JSON card any AI agent landing on the live worker can
+        parse to self-discover capabilities without a trip back to the
+        docs site. Always unauthenticated.
+      security: []
+      responses:
+        "200":
+          description: Service card.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  service:     { type: string }
+                  version:     { type: string }
+                  description: { type: string }
+                  docs:        { type: string, format: uri }
+                  discovery:
+                    type: object
+                    additionalProperties: { type: string }
+                  endpoints:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        method: { type: string }
+                        path:   { type: string }
+                        auth:   { type: string }
+
   /health:
     get:
       tags: [health]
@@ -53,6 +89,58 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Health"
+
+  /.well-known/agents.json:
+    get:
+      tags: [discovery]
+      operationId: getAgentsManifest
+      summary: Machine-readable capabilities manifest.
+      security: []
+      responses:
+        "200":
+          description: agents.json manifest.
+          content:
+            application/json:
+              schema: { type: object }
+
+  /.well-known/openapi.yaml:
+    get:
+      tags: [discovery]
+      operationId: getOpenApi
+      summary: OpenAPI 3.1 contract (this file).
+      security: []
+      responses:
+        "200":
+          description: OpenAPI 3.1 YAML.
+          content:
+            application/yaml:
+              schema: { type: string }
+
+  /llms.txt:
+    get:
+      tags: [discovery]
+      operationId: getLlmsTxt
+      summary: llms.txt-convention LLM crawl aid.
+      security: []
+      responses:
+        "200":
+          description: Plain-text crawl aid.
+          content:
+            text/plain:
+              schema: { type: string }
+
+  /llms-full.txt:
+    get:
+      tags: [discovery]
+      operationId: getLlmsFull
+      summary: Full self-contained LLM summary.
+      security: []
+      responses:
+        "200":
+          description: Plain-text summary.
+          content:
+            text/plain:
+              schema: { type: string }
 
   /train:
     post:

@@ -1,0 +1,73 @@
+name: publish-docs
+
+# Publish MkDocs site to GitHub Pages. The gh-pages site hosts
+# llms.txt, llms-full.txt, AGENTS.md, and .well-known/ so AI crawlers
+# that respect the site_url convention find them at the declared URL.
+#
+# One-time setup required in the repo: Settings → Pages → Build and
+# deployment → Source: GitHub Actions.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "llms.txt"
+      - "llms-full.txt"
+      - "AGENTS.md"
+      - ".well-known/**"
+      - ".github/workflows/publish-docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build mkdocs site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: install mkdocs
+        run: |
+          python -m pip install --upgrade pip
+          pip install mkdocs-material mkdocstrings[python]
+      - name: resolve agent-discovery symlinks under docs/
+        # mkdocs copies docs/* to the site root. Make sure the agent-SEO
+        # files are reachable at /llms.txt, /llms-full.txt, /AGENTS.md,
+        # /.well-known/agents.json, /.well-known/openapi.yaml, /robots.txt
+        # whether docs/ has symlinks, hard copies, or neither.
+        run: |
+          mkdir -p docs/.well-known
+          cp -fL llms.txt       docs/llms.txt
+          cp -fL llms-full.txt  docs/llms-full.txt
+          cp -fL AGENTS.md      docs/AGENTS.md
+          cp -fL .well-known/agents.json  docs/.well-known/agents.json
+          cp -fL .well-known/openapi.yaml docs/.well-known/openapi.yaml
+      - name: build
+        run: mkdocs build --strict
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    name: deploy to github pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

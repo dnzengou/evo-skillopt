@@ -36,10 +36,22 @@ points without crawling the whole repository.
 
 ## HTTP API (what the service exposes)
 
-- `GET  /health`              — liveness
-- `POST /train`               — run one training pass; optional `rrss` overlay
-- `POST /train/cascade`       — aggregate + gate a cascade of per-stage scores
-- `POST /fitness/arm`         — reduce Acquire/Retain/Monetize signals to one fitness
+Agent-discovery (unauthenticated GETs — served by the live worker at
+its own root AND by the docs site at `site_url`):
+
+- `GET  /`                          — service card JSON
+- `GET  /health`                    — liveness
+- `GET  /.well-known/agents.json`   — machine-readable capabilities manifest
+- `GET  /.well-known/openapi.yaml`  — OpenAPI 3.1 contract
+- `GET  /llms.txt`                  — this file
+- `GET  /llms-full.txt`             — full self-contained LLM summary
+- `GET  /AGENTS.md`                 — repo orientation for coding agents
+
+Operational endpoints (bearer auth when `WORKER_TOKEN` is set):
+
+- `POST /train`                     — one training pass; optional `rrss` overlay
+- `POST /train/cascade`             — aggregate + gate a cascade of per-stage scores
+- `POST /fitness/arm`               — reduce Acquire/Retain/Monetize signals to one fitness
 
 Machine-readable contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) (OpenAPI 3.1).
 Full endpoint docs: [worker/README.md](./worker/README.md).

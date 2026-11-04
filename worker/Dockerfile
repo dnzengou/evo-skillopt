@@ -33,15 +33,24 @@ WORKDIR /app
 # Copy venv + code from build stage
 COPY --from=build /opt/venv /opt/venv
 COPY --from=build /build/skillopt /app/skillopt
-COPY worker/skillopt_worker.py /app/skillopt_worker.py
+# Whole worker/ dir — needed for rrss_gate/cascade/arm_signals imports
+COPY worker/ /app/worker/
 COPY scripts /app/scripts
 COPY configs /app/configs
+
+# Agent-discovery files served from the live worker so AI agents hitting
+# the service blind can self-discover capabilities, endpoints, and docs.
+COPY llms.txt       /app/llms.txt
+COPY llms-full.txt  /app/llms-full.txt
+COPY AGENTS.md      /app/AGENTS.md
+COPY .well-known/   /app/.well-known/
 
 ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     OUTPUT_ROOT=/data/outputs \
     TRAIN_SCRIPT=/app/scripts/train.py \
+    DISCOVERY_ROOT=/app \
     PORT=9000
 
 RUN mkdir -p /data/outputs && chown -R app:app /data /app
@@ -53,4 +62,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9000/health',timeout=3).status==200 else 1)"
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["python3", "/app/skillopt_worker.py"]
+CMD ["python3", "/app/worker/skillopt_worker.py"]

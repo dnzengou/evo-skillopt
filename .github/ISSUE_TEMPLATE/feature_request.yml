@@ -1,0 +1,55 @@
+name: Feature request
+description: Propose a new capability or enhancement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: "Describe the use case in one paragraph. Prefer concrete scenarios over abstract 'wouldn't it be nice if'."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed capability
+      description: "What should evo-skillopt do? If it's an HTTP endpoint, sketch the payload and response."
+      render: markdown
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area?
+      options:
+        - Worker HTTP surface
+        - RRSS gate
+        - Cascade evaluator
+        - ARM fitness
+        - Agent-SEO / discovery
+        - Deployment template (Docker, Compose, Fly, systemd, K8s)
+        - Docs
+        - Examples
+        - CI / test
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alt
+    attributes:
+      label: Alternatives considered
+      description: "What else did you consider? Any existing workaround?"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Does this fit the OSS scope?
+      description: "Commercial-layer features (SSO, hosted dashboard, multi-tenant SaaS billing) live in a separate repo — see GTM.md § 7. Core worker changes live here."
+      options:
+        - label: "Yes, this belongs in the open-source worker core"
+          required: true

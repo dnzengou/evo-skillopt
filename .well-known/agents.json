@@ -158,6 +158,8 @@
     "glossary":        "./docs/GLOSSARY.md",
     "gtm_playbook":    "./GTM.md",
     "ai_seo_notes":    "./docs/AI_SEO.md",
+    "showcase":        "./SHOWCASE.md",
+    "release_guide":   "./RELEASING.md",
     "worker_readme":   "./worker/README.md",
     "worker_source":   "./worker/skillopt_worker.py"
   },

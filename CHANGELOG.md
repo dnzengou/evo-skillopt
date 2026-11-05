@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (SHOWCASE — drop-in integration recipes)
+- **`SHOWCASE.md`** — eight runnable recipes any coding agent can
+  lift verbatim into a customer app: OpenAI SDK (Python),
+  Anthropic SDK, LangChain (`PromptTemplate`), LlamaIndex,
+  CrewAI (`@tool evolve_skill`), Vercel AI SDK (TypeScript Next.js
+  edge route), shell/cron loop, and a cost-estimator-first pattern
+  so autonomous agents don't fire `/train` blind. Every snippet
+  uses only `EVO_URL` + `EVO_TOKEN` as config and the receiver's
+  native HTTP client — no evo-skillopt Python dependency required.
+- Discovery surface — README docs table, `llms.txt`, and
+  `.well-known/agents.json` `entry_points` all list SHOWCASE.md
+  so answer engines and coding agents find it at any discovery
+  entry point.
+
 ### Added (git-tracked audit trail · v0.2 progress)
 - **Opt-in git tracking in `worker/skill_store.py`** — when
   `SKILL_STORE_USE_GIT=1` is set (default **off**), every

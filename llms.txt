@@ -28,6 +28,8 @@ points without crawling the whole repository.
   roadmap, KPIs, use-case catalog (the master doc)
 - [INSTALL.md](./INSTALL.md): install paths — pip, Docker Compose, Fly.io
 - [USE_CASES.md](./USE_CASES.md): fitness configurations for common bots
+- [SHOWCASE.md](./SHOWCASE.md): drop-in integration snippets for
+  OpenAI, Anthropic, LangChain, LlamaIndex, CrewAI, Next.js + cron
 - [docs/CONCEPT.md](./docs/CONCEPT.md): the skill-as-weights analogy
 - [docs/GLOSSARY.md](./docs/GLOSSARY.md): defined terms (Skill, Rollout,
   Gate, Evolution, Signal, Cadence, RRSS, Cascade, ARM)

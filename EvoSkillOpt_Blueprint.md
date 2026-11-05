@@ -157,8 +157,9 @@ Version-numbered. Tick capabilities as they ship.
 | ✅ Agent-era SEO surface (repo + docs site)                         | `AGENTS.md` · `llms.txt` · `llms-full.txt` · `.well-known/{agents.json,openapi.yaml}` · JSON-LD (SoftwareApplication + HowTo + FAQ) · `CITATION.cff` |
 | ✅ MkDocs → GitHub Pages publish workflow                           | `.github/workflows/publish-docs.yml` · serves agent-SEO files at `site_url` |
 | ⬜ Job queue (SQLite-backed) — concurrent bot evolution             | Priority queue; ~200 LOC |
-| ⬜ Git-tracked skill versioning                                     | libgit2 or shell-out `git`; ~300 LOC |
-| ⬜ Cost accounting per evolution (LLM token counter)                | Wrap backend calls; ~100 LOC |
+| ✅ Git-tracked skill versioning                                     | `worker/skill_store.py` · opt-in via `SKILL_STORE_USE_GIT=1` · shell-out `git` · commit SHA written into `history.json` · graceful fallback when git missing |
+| ✅ Cost accounting — planning-time estimator                        | `worker/cost_estimator.py` · `GET /cost/models` + `POST /cost/estimate` · pricing registry for 13 models · rollout/reflect/gate breakdown |
+| ⬜ Cost accounting — runtime token counter                          | Needs hooking the vendored SkillOpt LLM client; separate PR |
 | ✅ Rollback endpoint set (`POST /bots/{id}/rollback` + `GET …/skill` + `…/history` + `…/diff`) | `worker/skill_store.py` · versioned file store · versions immutable · path-escape-safe |
 | ✅ Structured JSON logs with `bot_id` + `job_id` correlation         | `worker/log.py` · one JSON line / record · extras promoted to top-level keys |
 | ✅ Prometheus `/metrics` endpoint                                   | `worker/metrics.py` · RED method + gate + training counters · 503 degradation when `prometheus_client` missing |

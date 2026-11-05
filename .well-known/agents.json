@@ -123,6 +123,20 @@
       "auth": "bearer",
       "purpose": "point current at an existing older version; never destructive",
       "idempotent": false
+    },
+    {
+      "method": "GET",
+      "path": "/cost/models",
+      "auth": "none",
+      "purpose": "known-model price registry (USD per 1k tokens)",
+      "idempotent": true
+    },
+    {
+      "method": "POST",
+      "path": "/cost/estimate",
+      "auth": "bearer",
+      "purpose": "pre-run token + dollar estimate for one evolution against a model + workload",
+      "idempotent": true
     }
   ],
   "concepts": {
@@ -144,6 +158,8 @@
     "glossary":        "./docs/GLOSSARY.md",
     "gtm_playbook":    "./GTM.md",
     "ai_seo_notes":    "./docs/AI_SEO.md",
+    "showcase":        "./SHOWCASE.md",
+    "release_guide":   "./RELEASING.md",
     "worker_readme":   "./worker/README.md",
     "worker_source":   "./worker/skillopt_worker.py"
   },

@@ -28,6 +28,8 @@ points without crawling the whole repository.
   roadmap, KPIs, use-case catalog (the master doc)
 - [INSTALL.md](./INSTALL.md): install paths — pip, Docker Compose, Fly.io
 - [USE_CASES.md](./USE_CASES.md): fitness configurations for common bots
+- [SHOWCASE.md](./SHOWCASE.md): drop-in integration snippets for
+  OpenAI, Anthropic, LangChain, LlamaIndex, CrewAI, Next.js + cron
 - [docs/CONCEPT.md](./docs/CONCEPT.md): the skill-as-weights analogy
 - [docs/GLOSSARY.md](./docs/GLOSSARY.md): defined terms (Skill, Rollout,
   Gate, Evolution, Signal, Cadence, RRSS, Cascade, ARM)
@@ -57,6 +59,8 @@ Operational endpoints (bearer auth when `WORKER_TOKEN` is set):
 - `GET  /bots/{slug}/history`       — versioned history with gate deltas
 - `GET  /bots/{slug}/diff`          — unified diff: `?from=X.Y.Z&to=A.B.C`
 - `POST /bots/{slug}/rollback`      — rollback current to `?to=X.Y.Z`
+- `GET  /cost/models`               — known-model price registry (public)
+- `POST /cost/estimate`             — pre-run token + dollar estimate per workload
 
 Machine-readable contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) (OpenAPI 3.1).
 Full endpoint docs: [worker/README.md](./worker/README.md).

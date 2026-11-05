@@ -55,6 +55,7 @@ from skill_store import (  # noqa: E402
     list_versions,
     rollback as rollback_skill,
 )
+from cost_estimator import Workload, estimate_cost, list_models  # noqa: E402
 
 import metrics as _metrics  # noqa: E402
 from log import get_logger  # noqa: E402
@@ -112,6 +113,8 @@ SERVICE_CARD = {
         {"method": "GET", "path": "/bots/{id}/history", "auth": "bearer"},
         {"method": "GET", "path": "/bots/{id}/diff", "auth": "bearer"},
         {"method": "POST", "path": "/bots/{id}/rollback", "auth": "bearer"},
+        {"method": "GET", "path": "/cost/models", "auth": "none"},
+        {"method": "POST", "path": "/cost/estimate", "auth": "bearer"},
     ],
 }
 
@@ -306,6 +309,59 @@ def run_arm_fitness(job: dict) -> dict:
             for s in fit.per_bucket
         ],
     }
+
+
+def run_cost_estimate(job: dict) -> dict:
+    """Pre-run token + dollar estimate for one evolution.
+
+    Expected payload:
+        {
+          "bot_id": "author/name",
+          "model":  "gpt-4o-mini",
+          "workload": {
+            "num_epochs": 1,
+            "n_train_items": 100,
+            "n_eval_items": 25,
+            "mean_tokens_per_item": 500,
+            "rollouts_per_item": 1,
+            "reflections_per_item": 1,
+            "output_token_ratio": 0.4
+          }
+        }
+
+    Any workload field is optional — unspecified fields use the Workload
+    dataclass defaults so callers can submit a minimal payload.
+    """
+    model = str(job.get("model", "")).strip()
+    if not model:
+        return {"ok": False, "error": "cost-missing-model"}
+
+    raw = job.get("workload") or {}
+    if not isinstance(raw, dict):
+        return {"ok": False, "error": "cost-bad-workload"}
+    allowed = {
+        "num_epochs", "n_train_items", "n_eval_items",
+        "mean_tokens_per_item", "rollouts_per_item",
+        "reflections_per_item", "output_token_ratio",
+    }
+    kwargs: dict[str, object] = {}
+    for k, v in raw.items():
+        if k not in allowed:
+            return {"ok": False, "error": f"cost-unknown-field: {k}"}
+        try:
+            kwargs[k] = float(v) if k == "output_token_ratio" else int(v)
+        except (TypeError, ValueError):
+            return {"ok": False, "error": f"cost-bad-field-value: {k}={v!r}"}
+    try:
+        workload = Workload(**kwargs)  # type: ignore[arg-type]
+    except TypeError as exc:
+        return {"ok": False, "error": f"cost-bad-workload: {exc}"}
+    try:
+        est = estimate_cost(workload, model=model)
+    except KeyError as exc:
+        return {"ok": False, "error": f"cost-unknown-model: {exc}"}
+
+    return {"ok": True, **est.to_dict()}
 
 
 def run_cascade(job: dict) -> dict:
@@ -525,21 +581,27 @@ class Handler(BaseHTTPRequestHandler):
         return 200
 
     def _dispatch_GET(self) -> int:
-        if self.path == "/health":
+        bare = self.path.split("?", 1)[0]
+        if bare == "/health":
             self._write(200, {"service": "skillopt-worker", "status": "ok"})
             return 200
-        if self.path in ("/", ""):
+        if bare in ("/", ""):
             self._write(200, SERVICE_CARD)
             return 200
-        if self.path == "/metrics":
+        if bare == "/metrics":
             body, ctype = _metrics.render_metrics()
             code = 200 if _metrics.is_available() else 503
             self._write_bytes(code, body, ctype)
             return code
+        if bare == "/cost/models":
+            # Unauthenticated: the price table is a known public reference —
+            # useful for agents picking a model before they even authenticate.
+            self._write(200, {"ok": True, "models": list_models()})
+            return 200
         matched = self._match_bot_path()
         if matched and matched[1] in ("skill", "history", "diff"):
             return self._handle_bot_get(*matched)
-        if self._serve_discovery(self.path.split("?", 1)[0]):
+        if self._serve_discovery(bare):
             return getattr(self, "_last_code", 200)
         self._write(404, {"error": "not-found"})
         return 404
@@ -548,7 +610,8 @@ class Handler(BaseHTTPRequestHandler):
         matched = self._match_bot_path()
         if matched and matched[1] == "rollback":
             return self._handle_bot_rollback(matched[0])
-        if self.path.split("?", 1)[0] not in ("/train", "/train/cascade", "/fitness/arm"):
+        bare = self.path.split("?", 1)[0]
+        if bare not in ("/train", "/train/cascade", "/fitness/arm", "/cost/estimate"):
             self._write(404, {"error": "not-found"})
             return 404
         if not self._authed():
@@ -567,20 +630,27 @@ class Handler(BaseHTTPRequestHandler):
             self._write(400, {"error": "missing-bot-id"})
             return 400
         job_id = str(uuid.uuid4())
-        if self.path == "/train/cascade":
+        if bare == "/train/cascade":
             log.info(
                 "cascade",
                 extra={"bot_id": job["bot_id"], "job_id": job_id,
                        "stages": len(job.get("stages") or [])},
             )
             result = run_cascade(job)
-        elif self.path == "/fitness/arm":
+        elif bare == "/fitness/arm":
             log.info(
                 "arm",
                 extra={"bot_id": job["bot_id"], "job_id": job_id,
                        "signals": len(job.get("signals") or [])},
             )
             result = run_arm_fitness(job)
+        elif bare == "/cost/estimate":
+            log.info(
+                "cost",
+                extra={"bot_id": job["bot_id"], "job_id": job_id,
+                       "model": job.get("model")},
+            )
+            result = run_cost_estimate(job)
         else:
             log.info(
                 "training",

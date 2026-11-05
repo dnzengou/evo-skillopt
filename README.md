@@ -101,6 +101,7 @@ Homebrew, Docker, systemd, Fly.io, Kubernetes).
 | [`INSTALL.md`](./INSTALL.md)                          | Standalone install — desktop, server, cloud, container  |
 | [`RELEASING.md`](./RELEASING.md)                      | Cut a new release (PyPI via OIDC + GitHub Release)      |
 | [`USE_CASES.md`](./USE_CASES.md)                      | Low-hanging-fruit patterns with ROI math                |
+| [`SHOWCASE.md`](./SHOWCASE.md)                        | Drop-in snippets — OpenAI, Anthropic, LangChain, LlamaIndex, CrewAI, Next.js, cron, cost-aware agent |
 | [`GTM.md`](./GTM.md)                                  | Go-to-market in the agent era — playbook, channels, metrics |
 | [`EvoSkillOpt_Blueprint.md`](./EvoSkillOpt_Blueprint.md) | Living roadmap · capabilities · KPIs · v0.1 → v1.0   |
 | [`docs/CONCEPT.md`](./docs/CONCEPT.md)                | Core concept in depth                                   |

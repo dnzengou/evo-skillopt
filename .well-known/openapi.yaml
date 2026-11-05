@@ -167,6 +167,63 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /cost/models:
+    get:
+      tags: [aggregation]
+      operationId: getCostModels
+      summary: Known-model price registry.
+      description: |
+        Returns USD-per-1k pricing for every model the estimator
+        understands out of the box. Unauthenticated so an agent can
+        pick a model before it even holds a token.
+      security: []
+      responses:
+        "200":
+          description: Price registry.
+          content:
+            application/json:
+              schema: { type: object }
+
+  /cost/estimate:
+    post:
+      tags: [aggregation]
+      operationId: postCostEstimate
+      summary: Pre-run token and dollar estimate for one evolution.
+      description: |
+        Pure arithmetic over a workload spec and a model's per-1k
+        price. Does not consume provider tokens, does not shell out to
+        the trainer. Returns input/output tokens, breakdown by phase
+        (rollout / reflect / gate), and an itemized assumptions block.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [bot_id, model]
+              properties:
+                bot_id: { type: string }
+                model:  { type: string }
+                workload:
+                  type: object
+                  properties:
+                    num_epochs:            { type: integer, minimum: 0 }
+                    n_train_items:         { type: integer, minimum: 0 }
+                    n_eval_items:          { type: integer, minimum: 0 }
+                    mean_tokens_per_item:  { type: integer, minimum: 0 }
+                    rollouts_per_item:     { type: integer, minimum: 0 }
+                    reflections_per_item:  { type: integer, minimum: 0 }
+                    output_token_ratio:    { type: number,  minimum: 0 }
+      responses:
+        "200":
+          description: Estimate returned.
+          content:
+            application/json:
+              schema: { type: object }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalError" }
+
   /metrics:
     get:
       tags: [health]

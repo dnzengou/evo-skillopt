@@ -24,7 +24,7 @@ RUN python -m venv /opt/venv \
 FROM python:3.12-slim AS runtime
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates tini \
+      ca-certificates tini git \
     && rm -rf /var/lib/apt/lists/* \
  && groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
 
@@ -50,6 +50,7 @@ ENV PATH="/opt/venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
     OUTPUT_ROOT=/data/outputs \
     SKILL_STORE_ROOT=/data/bots \
+    SKILL_STORE_USE_GIT=1 \
     TRAIN_SCRIPT=/app/scripts/train.py \
     DISCOVERY_ROOT=/app \
     PORT=9000

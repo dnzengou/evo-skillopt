@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (SHOWCASE — drop-in integration recipes)
+- **`SHOWCASE.md`** — eight runnable recipes any coding agent can
+  lift verbatim into a customer app: OpenAI SDK (Python),
+  Anthropic SDK, LangChain (`PromptTemplate`), LlamaIndex,
+  CrewAI (`@tool evolve_skill`), Vercel AI SDK (TypeScript Next.js
+  edge route), shell/cron loop, and a cost-estimator-first pattern
+  so autonomous agents don't fire `/train` blind. Every snippet
+  uses only `EVO_URL` + `EVO_TOKEN` as config and the receiver's
+  native HTTP client — no evo-skillopt Python dependency required.
+- Discovery surface — README docs table, `llms.txt`, and
+  `.well-known/agents.json` `entry_points` all list SHOWCASE.md
+  so answer engines and coding agents find it at any discovery
+  entry point.
+
+### Added (git-tracked audit trail · v0.2 progress)
+- **Opt-in git tracking in `worker/skill_store.py`** — when
+  `SKILL_STORE_USE_GIT=1` is set (default **off**), every
+  `put_version` and `rollback` additionally commits to a per-bot git
+  repo at `<slug>/.git/` with `git init --initial-branch=main` on the
+  first write. The resulting commit SHA is written into that entry's
+  `history.json` row. Author identity is configurable via
+  `SKILL_STORE_GIT_NAME` / `SKILL_STORE_GIT_EMAIL` env.
+- **Graceful fallback.** A missing `git` binary never fails the
+  file-store write — `_git_commit` catches subprocess failures and
+  returns None; the version lands on disk either way and `history.json`
+  simply has no `sha` field for that entry.
+- **Container ships git** and sets `SKILL_STORE_USE_GIT=1` by default
+  so containerized installs get the audit trail out of the box.
+- **Tests** — `tests/test_skill_store_git.py` (5 cases): commit
+  creation on put_version, SHA present in history entry, rollback
+  appears in git log, SKILL_STORE_USE_GIT=False leaves the dir untouched,
+  rollback SHA persisted to history. Skips gracefully when git is
+  unavailable.
+- **Docs** — Blueprint v0.2 "git-tracked skill versioning" ticked.
+  Glossary entries added for *skill store* and *git-tracked audit trail*.
+
+### Added (cost estimator · v0.2 progress)
+- **`worker/cost_estimator.py`** — pure planning-time estimator. Given
+  a `Workload` (num_epochs, n_train_items, n_eval_items,
+  mean_tokens_per_item, rollouts_per_item, reflections_per_item,
+  output_token_ratio) and a model name, returns input/output tokens,
+  per-phase dollar breakdown (rollout / reflect / gate), total cost,
+  and the assumptions dict. Caller can override prices at the call
+  site. Built-in registry covers 13 models across OpenAI, Anthropic,
+  Google, and `local` (free).
+- **`GET /cost/models`** — the price registry as JSON.
+  **Unauthenticated** so an agent picking a model can read it before
+  it even holds a token.
+- **`POST /cost/estimate`** — pre-run estimate for one evolution.
+  Validates unknown workload fields instead of silently dropping them.
+- Discovery surface updated — AGENTS.md, llms.txt, `.well-known/agents.json`,
+  `.well-known/openapi.yaml`, service card at `GET /`.
+- Blueprint v0.2 "cost accounting" tick: planning-time estimator shipped;
+  runtime token counter deferred (needs hooking the vendored SkillOpt
+  LLM client — separate PR).
+
 ### Added (release automation)
 - **`.github/workflows/release.yml`** — tag-driven (`v*.*.*`) release
   pipeline: builds sdist + wheel with `python -m build`, runs

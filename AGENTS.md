@@ -82,6 +82,8 @@ Machine-readable OpenAPI 3.1 contract: [`.well-known/openapi.yaml`](./.well-know
 | GET    | `/bots/{id}/history`           | bearer | yes   | version history + gate deltas                |
 | GET    | `/bots/{id}/diff`              | bearer | yes   | unified diff — `?from=X.Y.Z&to=A.B.C`        |
 | POST   | `/bots/{id}/rollback`          | bearer | no    | point `current` at an older version          |
+| GET    | `/cost/models`                 | none   | yes   | known-model price registry                   |
+| POST   | `/cost/estimate`               | bearer | yes   | pre-run token + dollar estimate              |
 
 Bearer auth is required on POST endpoints when `WORKER_TOKEN` is set
 (dev mode = empty token = no auth). Discovery GETs are always

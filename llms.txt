@@ -57,6 +57,8 @@ Operational endpoints (bearer auth when `WORKER_TOKEN` is set):
 - `GET  /bots/{slug}/history`       — versioned history with gate deltas
 - `GET  /bots/{slug}/diff`          — unified diff: `?from=X.Y.Z&to=A.B.C`
 - `POST /bots/{slug}/rollback`      — rollback current to `?to=X.Y.Z`
+- `GET  /cost/models`               — known-model price registry (public)
+- `POST /cost/estimate`             — pre-run token + dollar estimate per workload
 
 Machine-readable contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) (OpenAPI 3.1).
 Full endpoint docs: [worker/README.md](./worker/README.md).

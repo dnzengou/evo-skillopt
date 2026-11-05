@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (cost estimator · v0.2 progress)
+- **`worker/cost_estimator.py`** — pure planning-time estimator. Given
+  a `Workload` (num_epochs, n_train_items, n_eval_items,
+  mean_tokens_per_item, rollouts_per_item, reflections_per_item,
+  output_token_ratio) and a model name, returns input/output tokens,
+  per-phase dollar breakdown (rollout / reflect / gate), total cost,
+  and the assumptions dict. Caller can override prices at the call
+  site. Built-in registry covers 13 models across OpenAI, Anthropic,
+  Google, and `local` (free).
+- **`GET /cost/models`** — the price registry as JSON.
+  **Unauthenticated** so an agent picking a model can read it before
+  it even holds a token.
+- **`POST /cost/estimate`** — pre-run estimate for one evolution.
+  Validates unknown workload fields instead of silently dropping them.
+- Discovery surface updated — AGENTS.md, llms.txt, `.well-known/agents.json`,
+  `.well-known/openapi.yaml`, service card at `GET /`.
+- Blueprint v0.2 "cost accounting" tick: planning-time estimator shipped;
+  runtime token counter deferred (needs hooking the vendored SkillOpt
+  LLM client — separate PR).
+
 ### Added (release automation)
 - **`.github/workflows/release.yml`** — tag-driven (`v*.*.*`) release
   pipeline: builds sdist + wheel with `python -m build`, runs

@@ -26,12 +26,25 @@ import difflib
 import json
 import os
 import re
+import shutil
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 SKILL_STORE_ROOT = Path(os.environ.get("SKILL_STORE_ROOT", "bots")).resolve()
+
+# Opt-in git-tracked audit trail. When "1", each put_version / rollback
+# also commits to a per-bot git repo under ``<bot_dir>/.git`` and the
+# resulting commit SHA is written back into history.json. Graceful
+# fallback: if git isn't on PATH or the subprocess fails for any reason,
+# the file-store operation still succeeds — git is a nice-to-have, not
+# a dependency.
+SKILL_STORE_USE_GIT = os.environ.get("SKILL_STORE_USE_GIT", "0").strip() == "1"
+
+_GIT_AUTHOR_NAME = os.environ.get("SKILL_STORE_GIT_NAME", "evo-skillopt worker")
+_GIT_AUTHOR_EMAIL = os.environ.get("SKILL_STORE_GIT_EMAIL", "worker@evo-skillopt.local")
 
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
@@ -48,15 +61,19 @@ class VersionEntry:
     gate_score_delta: float
     source: str
     note: str = ""
+    sha: str | None = None  # git commit SHA when SKILL_STORE_USE_GIT=1
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             "version": self.version,
             "ts": self.ts,
             "gate_score_delta": self.gate_score_delta,
             "source": self.source,
             "note": self.note,
         }
+        if self.sha:
+            out["sha"] = self.sha
+        return out
 
 
 def slugify(bot_id: str) -> str:
@@ -109,6 +126,57 @@ def _write_json(fp: Path, obj: Any) -> None:
     tmp.replace(fp)
 
 
+def _git_available() -> bool:
+    return SKILL_STORE_USE_GIT and shutil.which("git") is not None
+
+
+def _git(bot_dir: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:
+    """Run git inside a bot dir with the configured author identity.
+
+    Returns the CompletedProcess. Raises CalledProcessError on non-zero
+    exit when ``check`` is True — callers that want silent failure pass
+    ``check=False`` and inspect ``.returncode``.
+    """
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": _GIT_AUTHOR_NAME,
+        "GIT_COMMITTER_NAME": _GIT_AUTHOR_NAME,
+        "GIT_AUTHOR_EMAIL": _GIT_AUTHOR_EMAIL,
+        "GIT_COMMITTER_EMAIL": _GIT_AUTHOR_EMAIL,
+    }
+    return subprocess.run(
+        ["git", *args],
+        cwd=str(bot_dir), env=env,
+        capture_output=True, text=True, check=check, timeout=10,
+    )
+
+
+def _git_ensure_init(bot_dir: Path) -> None:
+    """Initialise a per-bot repo if it doesn't exist yet."""
+    if (bot_dir / ".git").exists():
+        return
+    _git(bot_dir, "init", "--quiet", "--initial-branch=main", check=False)
+
+
+def _git_commit(bot_dir: Path, message: str) -> str | None:
+    """Add + commit everything in the bot dir and return the commit SHA.
+
+    Never raises — a git failure must not break the file-store write.
+    """
+    if not _git_available():
+        return None
+    try:
+        _git_ensure_init(bot_dir)
+        _git(bot_dir, "add", "-A", check=False)
+        res = _git(bot_dir, "commit", "-m", message, "--allow-empty", check=False)
+        if res.returncode != 0:
+            return None
+        sha = _git(bot_dir, "rev-parse", "HEAD", check=False).stdout.strip()
+        return sha or None
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
 def put_version(
     bot_id: str,
     version: str,
@@ -142,6 +210,11 @@ def put_version(
     else:
         skill_fp.write_text(content)
 
+    if set_current:
+        _set_current_pointer(slug, version, root=root)
+
+    sha = _git_commit(bot_dir, f"skill v{version} ({source})") if _git_available() else None
+
     history_fp = bot_dir / "history.json"
     history = _read_json(history_fp, [])
     entry = VersionEntry(
@@ -150,14 +223,15 @@ def put_version(
         gate_score_delta=round(float(gate_score_delta), 4),
         source=source,
         note=note,
+        sha=sha,
     )
     # Dedup: don't record the same (version, source) twice in a row.
     if not history or (history[-1].get("version") != version or history[-1].get("source") != source):
         history.append(entry.to_dict())
         _write_json(history_fp, history)
-
-    if set_current:
-        _set_current_pointer(slug, version, root=root)
+        # history.json itself is part of the audit trail — commit it too.
+        if sha is not None:
+            _git_commit(bot_dir, f"history: v{version} ({source})")
     return entry
 
 
@@ -224,12 +298,18 @@ def rollback(
 
     _set_current_pointer(slug, to_version, root=root)
 
+    sha = (
+        _git_commit(bot_dir, f"rollback: {current} → v{to_version}")
+        if _git_available() else None
+    )
+
     history_fp = bot_dir / "history.json"
     history = _read_json(history_fp, [])
     entry = VersionEntry(
         version=to_version, ts=int(time.time()),
         gate_score_delta=0.0, source="rollback",
         note=note or (f"rolled back from {current}" if current else ""),
+        sha=sha,
     )
     history.append(entry.to_dict())
     _write_json(history_fp, history)

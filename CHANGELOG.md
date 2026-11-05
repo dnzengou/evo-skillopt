@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (git-tracked audit trail · v0.2 progress)
+- **Opt-in git tracking in `worker/skill_store.py`** — when
+  `SKILL_STORE_USE_GIT=1` is set (default **off**), every
+  `put_version` and `rollback` additionally commits to a per-bot git
+  repo at `<slug>/.git/` with `git init --initial-branch=main` on the
+  first write. The resulting commit SHA is written into that entry's
+  `history.json` row. Author identity is configurable via
+  `SKILL_STORE_GIT_NAME` / `SKILL_STORE_GIT_EMAIL` env.
+- **Graceful fallback.** A missing `git` binary never fails the
+  file-store write — `_git_commit` catches subprocess failures and
+  returns None; the version lands on disk either way and `history.json`
+  simply has no `sha` field for that entry.
+- **Container ships git** and sets `SKILL_STORE_USE_GIT=1` by default
+  so containerized installs get the audit trail out of the box.
+- **Tests** — `tests/test_skill_store_git.py` (5 cases): commit
+  creation on put_version, SHA present in history entry, rollback
+  appears in git log, SKILL_STORE_USE_GIT=False leaves the dir untouched,
+  rollback SHA persisted to history. Skips gracefully when git is
+  unavailable.
+- **Docs** — Blueprint v0.2 "git-tracked skill versioning" ticked.
+  Glossary entries added for *skill store* and *git-tracked audit trail*.
+
 ### Added (cost estimator · v0.2 progress)
 - **`worker/cost_estimator.py`** — pure planning-time estimator. Given
   a `Workload` (num_epochs, n_train_items, n_eval_items,

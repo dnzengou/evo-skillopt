@@ -66,6 +66,17 @@ Silent (no version bump); logged for post-hoc analysis.
 [`../EvoSkillOpt_Blueprint.md § 12`](../EvoSkillOpt_Blueprint.md#12-resilience-checklist):
 Robustify, Reliabilify, Solidify, Stabilize.
 
+**Skill store** · The versioned on-disk home of a bot's skill files.
+Layout: `<SKILL_STORE_ROOT>/<slug>/{meta.json, history.json, vX.Y.Z.md}`.
+Versions are immutable; `current` is a pointer in `meta.json` that
+`rollback` can move. Backed by `worker/skill_store.py`.
+
+**Git-tracked audit trail** · When `SKILL_STORE_USE_GIT=1`, every
+`put_version` and `rollback` additionally commits to a per-bot git
+repo at `<slug>/.git/`. The resulting commit SHA lands in that
+version's `history.json` entry. Graceful fallback: a missing `git`
+binary doesn't fail the write.
+
 **RRSS gate** · A validation gate that scores candidate skills on all
 four RRSS axes, then accepts only when every configured axis clears
 its floor AND the weighted-mean composite improves over the previous

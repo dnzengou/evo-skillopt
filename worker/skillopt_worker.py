@@ -43,8 +43,11 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
+import metrics as _metrics  # noqa: E402
 from arm_signals import Signal, compute_fitness  # noqa: E402
 from cascade import StageResult, evaluate_cascade  # noqa: E402
+from cost_estimator import Workload, estimate_cost, list_models  # noqa: E402
+from log import get_logger  # noqa: E402
 from rrss_from_history import derive_inputs  # noqa: E402
 from rrss_gate import compute_rrss, rrss_gate  # noqa: E402
 from skill_store import (  # noqa: E402
@@ -53,12 +56,8 @@ from skill_store import (  # noqa: E402
     get_current,
     get_skill,
     list_versions,
-    rollback as rollback_skill,
 )
-from cost_estimator import Workload, estimate_cost, list_models  # noqa: E402
-
-import metrics as _metrics  # noqa: E402
-from log import get_logger  # noqa: E402
+from skill_store import rollback as rollback_skill  # noqa: E402
 
 log = get_logger("worker")
 _metrics.init()

@@ -1,0 +1,82 @@
+# evo-skillopt — llms.txt
+
+> Text-space skill optimization for production LLM agents. A productized
+> wrapper around the SkillOpt algorithm (arXiv:2605.23904, MIT) that
+> exposes skill-file training as an HTTP service callable from any
+> language. Train a Markdown behavior contract like a neural network —
+> rollout, reflect, aggregate, select, update, gate — without touching
+> model weights.
+
+This file follows the [llms.txt convention](https://llmstxt.org/) so AI
+agents and LLM-powered search can locate the project's canonical entry
+points without crawling the whole repository.
+
+## About
+
+- **One sentence.** evo-skillopt is a self-hostable HTTP worker that
+  evolves a bot's Markdown skill file against a held-out eval set, with
+  git-tracked audit trails and inference-cost LLM calls.
+- **Scope.** This repo is the OSS worker + examples + docs. The
+  compounding advantage is the eval sets and evolved skills a user
+  builds up in their own repo over time.
+- **License.** MIT (this project) + MIT (vendored SkillOpt).
+
+## Primary docs
+
+- [README.md](./README.md): overview, quick start, architecture
+- [EvoSkillOpt_Blueprint.md](./EvoSkillOpt_Blueprint.md): vision,
+  roadmap, KPIs, use-case catalog (the master doc)
+- [INSTALL.md](./INSTALL.md): install paths — pip, Docker Compose, Fly.io
+- [USE_CASES.md](./USE_CASES.md): fitness configurations for common bots
+- [SHOWCASE.md](./SHOWCASE.md): drop-in integration snippets for
+  OpenAI, Anthropic, LangChain, LlamaIndex, CrewAI, Next.js + cron
+- [docs/CONCEPT.md](./docs/CONCEPT.md): the skill-as-weights analogy
+- [docs/GLOSSARY.md](./docs/GLOSSARY.md): defined terms (Skill, Rollout,
+  Gate, Evolution, Signal, Cadence, RRSS, Cascade, ARM)
+- [CONTRIBUTING.md](./CONTRIBUTING.md): how to contribute
+- [SECURITY.md](./SECURITY.md): vulnerability-report policy
+
+## HTTP API (what the service exposes)
+
+Agent-discovery (unauthenticated GETs — served by the live worker at
+its own root AND by the docs site at `site_url`):
+
+- `GET  /`                          — service card JSON
+- `GET  /health`                    — liveness
+- `GET  /metrics`                   — Prometheus exposition (RED metrics; needs `[worker]` extras)
+- `GET  /.well-known/agents.json`   — machine-readable capabilities manifest
+- `GET  /.well-known/openapi.yaml`  — OpenAPI 3.1 contract
+- `GET  /llms.txt`                  — this file
+- `GET  /llms-full.txt`             — full self-contained LLM summary
+- `GET  /AGENTS.md`                 — repo orientation for coding agents
+
+Operational endpoints (bearer auth when `WORKER_TOKEN` is set):
+
+- `POST /train`                     — one training pass; optional `rrss` overlay
+- `POST /train/cascade`             — aggregate + gate a cascade of per-stage scores
+- `POST /fitness/arm`               — reduce Acquire/Retain/Monetize signals to one fitness
+- `GET  /bots/{slug}/skill`         — current skill (or `?version=X.Y.Z`)
+- `GET  /bots/{slug}/history`       — versioned history with gate deltas
+- `GET  /bots/{slug}/diff`          — unified diff: `?from=X.Y.Z&to=A.B.C`
+- `POST /bots/{slug}/rollback`      — rollback current to `?to=X.Y.Z`
+- `GET  /cost/models`               — known-model price registry (public)
+- `POST /cost/estimate`             — pre-run token + dollar estimate per workload
+
+Machine-readable contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) (OpenAPI 3.1).
+Full endpoint docs: [worker/README.md](./worker/README.md).
+
+## Source entry points
+
+- [worker/skillopt_worker.py](./worker/skillopt_worker.py): HTTP bridge
+- [worker/rrss_gate.py](./worker/rrss_gate.py): resilience-scored gate
+- [worker/rrss_from_history.py](./worker/rrss_from_history.py): derive RRSS inputs from a run
+- [worker/cascade.py](./worker/cascade.py): multi-stage skill pipeline gating
+- [worker/arm_signals.py](./worker/arm_signals.py): lifecycle signal bucketing
+- [scripts/train.py](./scripts/train.py): upstream SkillOpt training entrypoint
+- [scripts/eval_only.py](./scripts/eval_only.py): single-skill evaluation
+
+## For agents navigating this repo
+
+See [AGENTS.md](./AGENTS.md) for a short orientation written for AI
+coding agents — repo layout, how to run tests, what to leave untouched
+(the vendored `skillopt/` directory), and the commit/branch conventions.

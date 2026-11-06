@@ -60,12 +60,12 @@ jobs:
           load: true
       - name: smoke — image starts + /health responds
         run: |
-          docker run -d --rm --name w -p 9000:9000 \
+          docker run -d --rm --name evo-ci -p 9000:9000 \
             -e WORKER_TOKEN=ci-token evo-skillopt-worker:ci
           for i in 1 2 3 4 5 6 7 8 9 10; do
             if curl -sf http://localhost:9000/health > /dev/null; then
-              echo "healthy after ${i}s"; docker rm -f w; exit 0
+              echo "healthy after ${i}s"; docker rm -f evo-ci; exit 0
             fi
             sleep 1
           done
-          docker logs w; docker rm -f w; exit 1
+          docker logs evo-ci; docker rm -f evo-ci; exit 1

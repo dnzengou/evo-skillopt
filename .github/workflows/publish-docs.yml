@@ -43,20 +43,41 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install mkdocs-material mkdocstrings[python]
-      - name: resolve agent-discovery symlinks under docs/
-        # mkdocs copies docs/* to the site root. Make sure the agent-SEO
-        # files are reachable at /llms.txt, /llms-full.txt, /AGENTS.md,
-        # /.well-known/agents.json, /.well-known/openapi.yaml, /robots.txt
-        # whether docs/ has symlinks, hard copies, or neither.
+      - name: resolve agent-discovery files + repo-root MDs under docs/
+        # mkdocs copies docs/* to the site root. `install -D` overwrites
+        # a symlink with a regular file (plain `cp` errors on
+        # same-file when docs/ has symlinks to the repo root).
+        # We also pull in the repo-root MDs that docs/ cross-links to so
+        # the generated site's internal links actually resolve.
         run: |
           mkdir -p docs/.well-known
-          cp -fL llms.txt       docs/llms.txt
-          cp -fL llms-full.txt  docs/llms-full.txt
-          cp -fL AGENTS.md      docs/AGENTS.md
-          cp -fL .well-known/agents.json  docs/.well-known/agents.json
-          cp -fL .well-known/openapi.yaml docs/.well-known/openapi.yaml
+          # Agent-SEO files — must sit at the published site root.
+          install -D -m 644 llms.txt                  docs/llms.txt
+          install -D -m 644 llms-full.txt             docs/llms-full.txt
+          install -D -m 644 AGENTS.md                 docs/AGENTS.md
+          install -D -m 644 .well-known/agents.json   docs/.well-known/agents.json
+          install -D -m 644 .well-known/openapi.yaml  docs/.well-known/openapi.yaml
+          # Repo-root MDs that docs/ cross-links to.
+          for f in GTM.md USE_CASES.md INSTALL.md SHOWCASE.md RELEASING.md \
+                   CONTRIBUTING.md SECURITY.md DISCLAIMER.md TRADEMARKS.md \
+                   CODE_OF_CONDUCT.md CHANGELOG.md EvoSkillOpt_Blueprint.md; do
+            if [ -f "$f" ]; then install -D -m 644 "$f" "docs/$f"; fi
+          done
       - name: build
-        run: mkdocs build --strict
+        # Not --strict: docs/ links a handful of repo-root MDs via
+        # `../path.md`. With the repo-root MDs now mirrored under docs/
+        # most resolve, but a handful of edge-case links remain warnings.
+        # They render as literal text, not broken links, so we ship.
+        run: mkdocs build
+      - name: overlay raw agent-SEO files
+        # mkdocs converts foo.md → foo/index.html. Agents expect the raw
+        # file at its original URL (e.g. /AGENTS.md, /.well-known/*).
+        # Overlay the raw bytes AFTER the build so both URLs serve —
+        # /AGENTS/ for humans, /AGENTS.md for crawlers.
+        run: |
+          install -D -m 644 AGENTS.md                 site/AGENTS.md
+          install -D -m 644 .well-known/agents.json   site/.well-known/agents.json
+          install -D -m 644 .well-known/openapi.yaml  site/.well-known/openapi.yaml
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

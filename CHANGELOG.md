@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (operational hygiene · v0.2 RRSS closure list)
+- **SIGTERM / SIGINT graceful drain** (Stabilize.1). Receiving a
+  shutdown signal flips a shared `_shutting_down` flag; new POSTs
+  get 503 with a `retry_after_s` hint while in-flight work finishes;
+  GETs on `/health`, `/metrics`, and the discovery paths stay answered
+  so orchestrators and agents can observe the drain. Bounded by
+  `SHUTDOWN_GRACE_SECONDS` (default 30, matches Kubernetes'
+  `terminationGracePeriodSeconds`). Logged as `signal-received` →
+  `worker-draining` → `worker-drained-clean` (or
+  `worker-forcing-shutdown` if the grace window ran out).
+- **`OUTPUT_ROOT` retention policy** (Stabilize.2). New module
+  `worker/retention.py` prunes training run dirs per bot, keeping the
+  most-recent `OUTPUT_RETENTION_PER_BOT` (default 30). Called
+  opportunistically after every `/train`, so disk stays bounded without
+  a cron. Pure stdlib, path-escape safe, idempotent, graceful (a single
+  delete failure doesn't abort the sweep). Pruning events emitted as
+  structured `retention` log lines with `pruned` / `failed` / `kept`
+  counts.
+- `.env.example` now documents `SHUTDOWN_GRACE_SECONDS` and
+  `OUTPUT_RETENTION_PER_BOT`.
+- Tests — `tests/test_retention.py` (8 cases): regex matching, keep-N
+  semantics, idempotency, per-bot isolation, unrelated-dir safety,
+  empty/missing root, report shape. `tests/test_shutdown.py` (8
+  cases): in-flight counter round-trip, concurrent-begin safety,
+  drain-flag flip, idempotent shutdown, grace-window drain-wait.
+
 ### Added (SHOWCASE — drop-in integration recipes)
 - **`SHOWCASE.md`** — eight runnable recipes any coding agent can
   lift verbatim into a customer app: OpenAI SDK (Python),

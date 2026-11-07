@@ -344,8 +344,8 @@ covers the union of those and closes the loop.
 
 Pre-v0.2 shipping hard-gate:
 
-- [ ] **Stabilize.1** — SIGTERM handler; drain in-flight jobs (~30 LOC)
-- [ ] **Stabilize.2** — `OUTPUT_ROOT` retention (keep last 30 per bot, ~50 LOC)
+- [x] **Stabilize.1** — SIGTERM / SIGINT drain: flips a flag, refuses new POSTs with 503, waits up to `SHUTDOWN_GRACE_SECONDS` (default 30) for in-flight work before exiting. GETs on `/health`, `/metrics`, and discovery paths stay answered during drain. `worker/skillopt_worker.py::_drain_and_shutdown` + `_install_signal_handlers`.
+- [x] **Stabilize.2** — `OUTPUT_ROOT` retention policy: `worker/retention.py::prune` keeps most-recent `OUTPUT_RETENTION_PER_BOT` (default 30) run dirs per bot, deletes older ones. Called opportunistically after every `/train`. Pure stdlib, path-escape safe, idempotent, graceful (single delete failure doesn't abort the sweep).
 - [ ] **Stabilize.3** — Per-tenant caps on skill history (~30 LOC)
 - [ ] **Robustify.1** — Retry on transient LLM 5xx / ECONNRESET (~80 LOC)
 - [ ] **Robustify.2** — Circuit breaker on provider (5 fails → trip; probe every 30 s) (~100 LOC)

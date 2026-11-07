@@ -29,11 +29,14 @@ to call the API safely — no out-of-band docs required.
 Zero external deps: stdlib only (http.server, json, subprocess).
 """
 
+import contextlib
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -48,6 +51,7 @@ from arm_signals import Signal, compute_fitness  # noqa: E402
 from cascade import StageResult, evaluate_cascade  # noqa: E402
 from cost_estimator import Workload, estimate_cost, list_models  # noqa: E402
 from log import get_logger  # noqa: E402
+from retention import prune as prune_output_root  # noqa: E402
 from rrss_from_history import derive_inputs  # noqa: E402
 from rrss_gate import compute_rrss, rrss_gate  # noqa: E402
 from skill_store import (  # noqa: E402
@@ -61,6 +65,35 @@ from skill_store import rollback as rollback_skill  # noqa: E402
 
 log = get_logger("worker")
 _metrics.init()
+
+# ---------------------------------------------------------------------------
+# Shutdown coordination — SIGTERM / SIGINT stop accepting new work but
+# wait for in-flight requests to finish before the server exits. The
+# drain window is bounded by SHUTDOWN_GRACE_SECONDS to avoid holding a
+# container hostage on a wedged request.
+# ---------------------------------------------------------------------------
+
+SHUTDOWN_GRACE_SECONDS = float(os.environ.get("SHUTDOWN_GRACE_SECONDS", "30"))
+_shutting_down = threading.Event()
+_inflight_count = 0
+_inflight_lock = threading.Lock()
+
+
+def _inflight_begin() -> None:
+    global _inflight_count
+    with _inflight_lock:
+        _inflight_count += 1
+
+
+def _inflight_end() -> None:
+    global _inflight_count
+    with _inflight_lock:
+        _inflight_count = max(0, _inflight_count - 1)
+
+
+def _inflight_snapshot() -> int:
+    with _inflight_lock:
+        return _inflight_count
 
 WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "").strip()
 OUTPUT_ROOT = Path(os.environ.get("OUTPUT_ROOT", "outputs/evo")).resolve()
@@ -204,6 +237,21 @@ def run_training(job: dict) -> dict:
     }
     _metrics.record_gate("base", base_passed)
     _metrics.record_training("accepted" if base_passed else "rejected", duration_s)
+
+    # Opportunistic retention — keep OUTPUT_ROOT bounded. Safe to run
+    # every /train: a no-op once the per-bot count sits at the cap.
+    try:
+        rep = prune_output_root(OUTPUT_ROOT)
+        if rep.pruned or rep.failed:
+            log.info(
+                "retention",
+                extra={
+                    "bot_id": bot_id, "pruned": rep.pruned,
+                    "failed": rep.failed, "kept": rep.kept,
+                },
+            )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("retention-error", extra={"err": str(exc)})
 
     # Optional RRSS overlay: caller passes ``rrss`` payload with the four
     # axis inputs; the RRSS composite becomes the authoritative gate.
@@ -470,12 +518,25 @@ class Handler(BaseHTTPRequestHandler):
     def _begin(self) -> None:
         self._t0 = time.time()
         _metrics.inflight_inc(self.command or "?", self.path)
+        _inflight_begin()
 
     def _finish(self, code: int) -> None:
         dur = time.time() - getattr(self, "_t0", time.time())
         _metrics.inflight_dec(self.command or "?", self.path)
         _metrics.record_request(self.command or "?", self.path, code, dur)
+        _inflight_end()
         self._last_code = code
+
+    def _refuse_new_work(self) -> bool:
+        """When draining, refuse new mutating POSTs with 503 but still
+        answer /health, /metrics, and discovery GETs so operators and
+        agents can observe the shutdown."""
+        if not _shutting_down.is_set():
+            return False
+        if self.command == "GET":
+            return False
+        self._write(503, {"error": "shutting-down", "retry_after_s": 5})
+        return True
 
     # Inject around every call by pre/post-hooking do_GET / do_POST.
     def _parse_query(self) -> dict[str, str]:
@@ -674,7 +735,7 @@ class Handler(BaseHTTPRequestHandler):
         self._begin()
         self._last_code = 200
         try:
-            code = self._dispatch_POST()
+            code = 503 if self._refuse_new_work() else self._dispatch_POST()
         finally:
             self._finish(getattr(self, "_last_code", 500) if "code" not in locals() else code)
 
@@ -682,18 +743,56 @@ class Handler(BaseHTTPRequestHandler):
         log.info("access", extra={"peer": self.address_string(), "line": fmt % args})
 
 
+def _drain_and_shutdown(server: ThreadingHTTPServer) -> None:
+    """Flip the drain flag, wait for in-flight work, then shut the server."""
+    if _shutting_down.is_set():
+        return
+    _shutting_down.set()
+    log.info(
+        "worker-draining",
+        extra={"inflight": _inflight_snapshot(),
+               "grace_seconds": SHUTDOWN_GRACE_SECONDS},
+    )
+    deadline = time.time() + SHUTDOWN_GRACE_SECONDS
+    while time.time() < deadline:
+        if _inflight_snapshot() == 0:
+            break
+        time.sleep(0.2)
+    remaining = _inflight_snapshot()
+    if remaining > 0:
+        log.warning("worker-forcing-shutdown", extra={"inflight": remaining})
+    else:
+        log.info("worker-drained-clean")
+    # ThreadingHTTPServer.shutdown must be called from a different
+    # thread than serve_forever to avoid self-deadlock.
+    threading.Thread(target=server.shutdown, daemon=True).start()
+
+
+def _install_signal_handlers(server: ThreadingHTTPServer) -> None:
+    def _handler(signum, _frame):  # noqa: ANN001
+        log.info("signal-received", extra={"signum": signum})
+        _drain_and_shutdown(server)
+    # signal.signal only works in the main thread; tests may import
+    # this module from a non-main thread.
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        with contextlib.suppress(ValueError, OSError):
+            signal.signal(sig, _handler)
+
+
 if __name__ == "__main__":
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    _install_signal_handlers(server)
     log.info(
         "worker-start",
         extra={
             "port": PORT, "output_root": str(OUTPUT_ROOT),
             "discovery_root": str(DISCOVERY_ROOT),
             "prometheus": _metrics.is_available(),
+            "shutdown_grace_s": SHUTDOWN_GRACE_SECONDS,
         },
     )
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        server.shutdown()
+        _drain_and_shutdown(server)

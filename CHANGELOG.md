@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (SQLite job queue · v0.2 feature complete)
+- **`worker/job_queue.py`** — stdlib `sqlite3` + WAL mode. Public API:
+  `open_db`, `enqueue`, `claim_next` (atomic via `BEGIN IMMEDIATE`),
+  `complete`, `get`, `list_jobs`, `recover_stale`, `delete_old`,
+  `counts_by_status`. Status machine: `queued` → `running` →
+  `succeeded`/`failed`/`timeout`.
+- **`POST /train` + `{"async": true}`** — enqueues the job, returns
+  202 + `job_id`. Default (no `async` flag) stays synchronous — strict
+  superset of the previous behavior, no breaking change.
+- **`GET /jobs`** — paged list with filters `status`, `bot_id`,
+  `limit` (max 200), `offset`. Includes a `counts` summary object.
+- **`GET /jobs/{id}`** — status + result + error for one job.
+- **Background drain workers** — `JOB_QUEUE_WORKERS` threads (default
+  2) poll the queue, run `/train` to completion, and write the
+  result back. Serialized on a shared connection lock so SQLite stays
+  happy; one claim-per-call enforced by the atomic `claim_next` txn.
+- **Crash recovery on startup** — rows left in `running` for more
+  than `JOB_QUEUE_STALE_SECONDS` (default 7200) are reset to
+  `queued` so the next worker startup drains them. Reported on the
+  `queue-ready` log line.
+- **Clean SIGTERM integration** — drain workers exit as soon as
+  `_shutting_down` flips; the main `_queue_wait_workers` step
+  blocks shutdown up to `SHUTDOWN_GRACE_SECONDS` so in-flight jobs
+  get to a terminal state before exit.
+- **Container defaults** — Dockerfile ships `JOB_QUEUE_DB=/data/jobs.db`
+  and `JOB_QUEUE_WORKERS=2`; `.env.example` documents all three env
+  vars.
+- **Tests** — `tests/test_job_queue.py` (19 cases): schema, enqueue,
+  idempotent enqueue on explicit job_id, atomic claim-next,
+  concurrent-claim no-double, complete success/failure, non-terminal
+  status rejected, list filters + ordering + counts, stale recovery,
+  persistence across reopen, `delete_old` keep-newest-N correctness.
+- **Verified live** — 3 async jobs enqueued, 2 queue workers picked
+  them up concurrently, all 3 landed in `succeeded` with the stubbed
+  trainer's `gate_passed=True` and `delta=0.15`. SIGTERM mid-flight
+  drained both workers cleanly.
+
 ### Added (operational hygiene · v0.2 RRSS closure list)
 - **SIGTERM / SIGINT graceful drain** (Stabilize.1). Receiving a
   shutdown signal flips a shared `_shutting_down` flag; new POSTs

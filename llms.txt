@@ -61,6 +61,9 @@ Operational endpoints (bearer auth when `WORKER_TOKEN` is set):
 - `POST /bots/{slug}/rollback`      — rollback current to `?to=X.Y.Z`
 - `GET  /cost/models`               — known-model price registry (public)
 - `POST /cost/estimate`             — pre-run token + dollar estimate per workload
+- `GET  /jobs`                      — list async-queue jobs (filters: status, bot_id, limit, offset)
+- `GET  /jobs/{id}`                 — status + result of one async job
+- `POST /train` with `{"async": true}` — enqueue instead of running inline; returns 202 + job_id
 
 Machine-readable contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) (OpenAPI 3.1).
 Full endpoint docs: [worker/README.md](./worker/README.md).

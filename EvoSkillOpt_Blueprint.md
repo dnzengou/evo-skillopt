@@ -156,7 +156,7 @@ Version-numbered. Tick capabilities as they ship.
 | ✅ Agent-discovery endpoints on the live worker                     | `GET /` card · `/.well-known/agents.json` · `/llms.txt` · `/openapi.yaml` |
 | ✅ Agent-era SEO surface (repo + docs site)                         | `AGENTS.md` · `llms.txt` · `llms-full.txt` · `.well-known/{agents.json,openapi.yaml}` · JSON-LD (SoftwareApplication + HowTo + FAQ) · `CITATION.cff` |
 | ✅ MkDocs → GitHub Pages publish workflow                           | `.github/workflows/publish-docs.yml` · serves agent-SEO files at `site_url` |
-| ⬜ Job queue (SQLite-backed) — concurrent bot evolution             | Priority queue; ~200 LOC |
+| ✅ Job queue (SQLite-backed) — concurrent bot evolution             | `worker/job_queue.py` · opt-in via `{"async": true}` on `POST /train` · N background threads (default 2, `JOB_QUEUE_WORKERS`) drain the queue · `GET /jobs` + `GET /jobs/{id}` · survives restart (WAL mode + stale-running recovery) · `POST /train` default stays synchronous |
 | ✅ Git-tracked skill versioning                                     | `worker/skill_store.py` · opt-in via `SKILL_STORE_USE_GIT=1` · shell-out `git` · commit SHA written into `history.json` · graceful fallback when git missing |
 | ✅ Cost accounting — planning-time estimator                        | `worker/cost_estimator.py` · `GET /cost/models` + `POST /cost/estimate` · pricing registry for 13 models · rollout/reflect/gate breakdown |
 | ⬜ Cost accounting — runtime token counter                          | Needs hooking the vendored SkillOpt LLM client; separate PR |

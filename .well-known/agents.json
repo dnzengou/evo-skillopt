@@ -137,6 +137,20 @@
       "auth": "bearer",
       "purpose": "pre-run token + dollar estimate for one evolution against a model + workload",
       "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/jobs",
+      "auth": "bearer",
+      "purpose": "list async-queue jobs (filters: status, bot_id, limit, offset); includes a counts-by-status summary",
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/jobs/{id}",
+      "auth": "bearer",
+      "purpose": "status + result of one async /train job",
+      "idempotent": true
     }
   ],
   "concepts": {

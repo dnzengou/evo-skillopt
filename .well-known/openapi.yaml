@@ -167,6 +167,48 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /jobs:
+    get:
+      tags: [training]
+      operationId: listJobs
+      summary: List async-queue jobs. Filterable by status and bot_id.
+      parameters:
+        - { in: query, name: status,  schema: { type: string, enum: [queued, running, succeeded, failed, timeout] } }
+        - { in: query, name: bot_id,  schema: { type: string } }
+        - { in: query, name: limit,   schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { in: query, name: offset,  schema: { type: integer, minimum: 0, default: 0 } }
+      responses:
+        "200":
+          description: Jobs page.
+          content:
+            application/json:
+              schema: { type: object }
+        "503":
+          description: Async queue not enabled on this worker.
+          content:
+            application/json:
+              schema: { type: object }
+
+  /jobs/{id}:
+    get:
+      tags: [training]
+      operationId: getJob
+      summary: Status + result of one async /train job.
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Job row.
+          content:
+            application/json:
+              schema: { type: object }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503":
+          description: Async queue not enabled on this worker.
+          content:
+            application/json:
+              schema: { type: object }
+
   /cost/models:
     get:
       tags: [aggregation]

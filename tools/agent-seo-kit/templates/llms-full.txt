@@ -1,0 +1,41 @@
+# {{project}} — llms-full.txt
+
+Full LLM-navigable summary. Shaped so an agent that reads only this
+file still has enough to understand what the project does, call it
+safely, and locate the source for anything deeper.
+
+Convention: [llms.txt](https://llmstxt.org/).
+
+## One-line description
+
+{{description}}
+
+## Why it exists
+
+(fill in: the problem this solves, the user)
+
+## Not what it is
+
+- (fill in: common confusions, what this is NOT)
+
+## Public surface
+
+(If this project exposes an API: paste or summarize the OpenAPI here.
+If this is a library: list the module entry points and their
+signatures.)
+
+## How a safe agent should use this
+
+1. Read [`AGENTS.md`](./AGENTS.md) once for repo conventions.
+2. Prefer idempotent entry points for probing.
+3. Never commit secrets. Keys live in env only.
+
+## Repo map
+
+- `README.md` — human overview
+- `AGENTS.md` — AI-agent orientation
+- `.well-known/openapi.yaml` — OpenAPI 3.1 contract (if applicable)
+- `.well-known/agents.json` — capabilities manifest
+- (fill in the rest of your tree)
+
+https://github.com/{{owner}}/{{repo}}

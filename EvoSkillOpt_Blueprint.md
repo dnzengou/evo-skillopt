@@ -382,6 +382,41 @@ that decision.
 
 ---
 
+## Onboarding (shipped, this iteration)
+
+Zero-to-first-evolution in 60 seconds:
+
+```bash
+git clone https://github.com/dnzengou/evo-skillopt.git
+cd evo-skillopt && pip install -e '.[worker]'
+bash examples/demo_evolve_bot.sh
+```
+
+The demo spins the worker with a stubbed trainer, enqueues one
+evolution for a sample support bot, polls until the job succeeds,
+persists the accepted skill into the versioned store, and prints
+the `/history` + `/diff`. The full flow end-to-end in under 15
+seconds, no provider credentials required.
+
+Full walkthrough: [`QUICKSTART.md`](./QUICKSTART.md).
+
+## Agent-SEO kit (shipped, this iteration)
+
+The AI-era SEO surface we build for `evo-skillopt` is itself a
+reusable product. Any OSS project drops it in with:
+
+```bash
+PROJECT_NAME=my-tool PROJECT_OWNER=myuser PROJECT_REPO=my-tool \
+  bash /path/to/evo-skillopt/tools/agent-seo-kit/scaffold.sh
+bash .agent-seo-verify.sh
+```
+
+The kit lives at [`tools/agent-seo-kit/`](./tools/agent-seo-kit/)
+and ships template `AGENTS.md`, `llms.txt`, `llms-full.txt`,
+`agents.json`, `openapi.yaml`, `robots.txt`, `CITATION.cff`, and
+JSON-LD snippets, plus `scaffold.sh` + `verify.sh`. See
+[`docs/AI_SEO.md`](./docs/AI_SEO.md) for implementation notes.
+
 ## Agent-era GTM (new in v1.2)
 
 Discovery is now a product feature, not a marketing afterthought.

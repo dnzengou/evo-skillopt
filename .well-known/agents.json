@@ -173,6 +173,8 @@
     "gtm_playbook":    "./GTM.md",
     "ai_seo_notes":    "./docs/AI_SEO.md",
     "showcase":        "./SHOWCASE.md",
+    "quickstart":      "./QUICKSTART.md",
+    "agent_seo_kit":   "./tools/agent-seo-kit/",
     "release_guide":   "./RELEASING.md",
     "worker_readme":   "./worker/README.md",
     "worker_source":   "./worker/skillopt_worker.py"

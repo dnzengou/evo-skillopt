@@ -1,0 +1,71 @@
+# robots.txt — explicit allow-list for AI crawlers.
+# Edit per your policy. The defaults allow major answer-engine bots to
+# index public docs and refuse everything else. For private repos or
+# unreleased projects, flip to Disallow: / and add individual Allow
+# entries as you ship.
+
+# ── AI answer engines ─────────────────────────────────────────────────
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: DuckAssistBot
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+# ── Classic search ────────────────────────────────────────────────────
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# ── Everything else — default allow for developer docs ────────────────
+User-agent: *
+Allow: /
+Disallow: /.git/
+Disallow: /node_modules/
+Disallow: /.venv/
+
+# Where to find the sitemap, if you publish one.
+# Sitemap: https://{{owner}}.github.io/{{repo}}/sitemap.xml

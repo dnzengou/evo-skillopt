@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (onboarding + agent-SEO kit · productization)
+- **`QUICKSTART.md`** — 60-second onboarding. Three commands land a
+  running worker, enqueue an evolution, and show a gated diff.
+  Includes a troubleshooting table, three common follow-ups (point
+  at a real LLM, see the cost first, wire a signal source), and an
+  AI-agents section with the canonical entry points.
+- **`examples/demo_evolve_bot.sh`** — the "aha moment" in one
+  command. Spins the worker with a stubbed trainer, seeds v0.1.0,
+  enqueues an async evolution, polls until succeeded, persists
+  v0.1.1, and prints `/history` + `/diff`. End-to-end under 15
+  seconds. Cleans up its own tmp state on exit.
+- **`tools/agent-seo-kit/`** — the agent-SEO surface extracted as a
+  reusable kit. Templates for `AGENTS.md`, `llms.txt`,
+  `llms-full.txt`, `.well-known/{agents.json,openapi.yaml}`,
+  `robots.txt`, `CITATION.cff`, and JSON-LD snippets. Ships with
+  `scaffold.sh` (one-command drop-in with placeholder substitution)
+  and a `verify.sh` the target project can wire into its own CI.
+  Any OSS project copies it with one curl-pipe-bash.
+- README, llms.txt, and `.well-known/agents.json` link
+  QUICKSTART.md and the agent-SEO kit as first-class entry points.
+
 ### Added (SQLite job queue · v0.2 feature complete)
 - **`worker/job_queue.py`** — stdlib `sqlite3` + WAL mode. Public API:
   `open_db`, `enqueue`, `claim_next` (atomic via `BEGIN IMMEDIATE`),

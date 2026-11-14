@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+title: "{{project}}"
+message: "If you use this software, please cite it using the metadata below."
+type: software
+authors:
+  - name: "{{owner}}"
+repository-code: "https://github.com/{{owner}}/{{repo}}"
+abstract: "{{description}}"
+license: MIT

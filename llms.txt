@@ -24,6 +24,8 @@ points without crawling the whole repository.
 ## Primary docs
 
 - [README.md](./README.md): overview, quick start, architecture
+- [QUICKSTART.md](./QUICKSTART.md): 60-second onboarding ending in a
+  runnable demo that evolves a sample bot end-to-end
 - [EvoSkillOpt_Blueprint.md](./EvoSkillOpt_Blueprint.md): vision,
   roadmap, KPIs, use-case catalog (the master doc)
 - [INSTALL.md](./INSTALL.md): install paths — pip, Docker Compose, Fly.io
@@ -83,3 +85,17 @@ Full endpoint docs: [worker/README.md](./worker/README.md).
 See [AGENTS.md](./AGENTS.md) for a short orientation written for AI
 coding agents — repo layout, how to run tests, what to leave untouched
 (the vendored `skillopt/` directory), and the commit/branch conventions.
+
+## Agent-SEO kit (extractable)
+
+The agent-SEO surface (`AGENTS.md`, `llms.txt`, `agents.json`,
+`openapi.yaml`, `robots.txt`, JSON-LD) that makes this project
+agents-detectable is shipped as a standalone kit at
+[`tools/agent-seo-kit/`](./tools/agent-seo-kit/). Any OSS project can
+drop it in with:
+
+    PROJECT_NAME=... PROJECT_OWNER=... PROJECT_REPO=... \
+      bash /path/to/evo-skillopt/tools/agent-seo-kit/scaffold.sh
+
+Followed by `bash .agent-seo-verify.sh` to confirm every artifact is
+present and well-formed.

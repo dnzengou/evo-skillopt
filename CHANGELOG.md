@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (case studies + launch copy)
+- **`docs/CASE_STUDIES.md`** — four illustrations of the pattern in
+  production, ordered template → self-application → signal-rich →
+  signal-densest. Case #1 attributes the EvoSkillOps meta-skill's
+  `Vt`/`Pz` discipline (kali-webOS → `@aetherclaw/ai-seo`) as prior
+  art; case #2 shows the same move applied here (agent-SEO kit);
+  cases #3-4 walk the customer-support + docs-assistant ROI math
+  with concrete signal-wiring tables and demo-script links. Includes
+  a "next cases to add" shortlist with signal-density rationale.
+- **`docs/PROMO.md`** — launch-ready copy per channel: 4
+  one-sentence taglines (developer / ops / exec / AI-SEO audiences),
+  a 3-post X thread, a LinkedIn long-form, Show HN title + first
+  comment, Reddit r/MachineLearning/LocalLLaMA post, email
+  signature line. Plus a launch-day checklist and an explicit
+  "what NOT to say" list (no fake numbers, no fake stars, no "beats
+  GPT-5", no vendor-affiliation claims) consistent with the
+  EvoSkillOps `Vt` hard-refusals discipline.
+- Discovery surface — README docs table, llms.txt primary-docs
+  section, `.well-known/agents.json` `entry_points` all link the
+  two new files.
+
 ### Added (onboarding + agent-SEO kit · productization)
 - **`QUICKSTART.md`** — 60-second onboarding. Three commands land a
   running worker, enqueue an evolution, and show a gated diff.

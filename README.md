@@ -103,6 +103,8 @@ Homebrew, Docker, systemd, Fly.io, Kubernetes).
 | File                                                  | What                                                    |
 |-------------------------------------------------------|---------------------------------------------------------|
 | [`QUICKSTART.md`](./QUICKSTART.md)                    | 60-second onboarding — zero to first evolution          |
+| [`docs/CASE_STUDIES.md`](./docs/CASE_STUDIES.md)      | Four real-world illustrations of the pattern in production |
+| [`docs/PROMO.md`](./docs/PROMO.md)                    | Launch-ready social copy — X thread, LinkedIn, Show HN  |
 | [`INSTALL.md`](./INSTALL.md)                          | Standalone install — desktop, server, cloud, container  |
 | [`RELEASING.md`](./RELEASING.md)                      | Cut a new release (PyPI via OIDC + GitHub Release)      |
 | [`USE_CASES.md`](./USE_CASES.md)                      | Low-hanging-fruit patterns with ROI math                |

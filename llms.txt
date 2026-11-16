@@ -35,6 +35,10 @@ points without crawling the whole repository.
 - [docs/CONCEPT.md](./docs/CONCEPT.md): the skill-as-weights analogy
 - [docs/GLOSSARY.md](./docs/GLOSSARY.md): defined terms (Skill, Rollout,
   Gate, Evolution, Signal, Cadence, RRSS, Cascade, ARM)
+- [docs/CASE_STUDIES.md](./docs/CASE_STUDIES.md): four real-world
+  illustrations — kali-webOS (the EvoSkillOps meta-skill in action),
+  this repo's own agent-SEO-kit extraction, a customer-support bot,
+  and a docs assistant
 - [CONTRIBUTING.md](./CONTRIBUTING.md): how to contribute
 - [SECURITY.md](./SECURITY.md): vulnerability-report policy
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://agents.md/schema/v1/agents.json",
+  "name": "{{project}}",
+  "description": "{{description}}",
+  "homepage": "https://github.com/{{owner}}/{{repo}}",
+  "docs": "https://github.com/{{owner}}/{{repo}}#readme",
+  "license": "MIT",
+  "keywords": [],
+  "capabilities": {},
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/health",
+      "auth": "none",
+      "purpose": "liveness probe (example — replace with your real endpoints)",
+      "idempotent": true
+    }
+  ],
+  "entry_points": {
+    "overview":      "./README.md",
+    "orientation":   "./AGENTS.md",
+    "llms_txt":      "./llms.txt",
+    "llms_full":     "./llms-full.txt",
+    "openapi":       "./.well-known/openapi.yaml",
+    "citation":      "./CITATION.cff"
+  },
+  "contact": {
+    "issues":   "https://github.com/{{owner}}/{{repo}}/issues"
+  }
+}

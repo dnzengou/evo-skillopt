@@ -7,6 +7,111 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (case studies + launch copy)
+- **`docs/CASE_STUDIES.md`** — four illustrations of the pattern in
+  production, ordered template → self-application → signal-rich →
+  signal-densest. Case #1 attributes the EvoSkillOps meta-skill's
+  `Vt`/`Pz` discipline (kali-webOS → `@aetherclaw/ai-seo`) as prior
+  art; case #2 shows the same move applied here (agent-SEO kit);
+  cases #3-4 walk the customer-support + docs-assistant ROI math
+  with concrete signal-wiring tables and demo-script links. Includes
+  a "next cases to add" shortlist with signal-density rationale.
+- **`docs/PROMO.md`** — launch-ready copy per channel: 4
+  one-sentence taglines (developer / ops / exec / AI-SEO audiences),
+  a 3-post X thread, a LinkedIn long-form, Show HN title + first
+  comment, Reddit r/MachineLearning/LocalLLaMA post, email
+  signature line. Plus a launch-day checklist and an explicit
+  "what NOT to say" list (no fake numbers, no fake stars, no "beats
+  GPT-5", no vendor-affiliation claims) consistent with the
+  EvoSkillOps `Vt` hard-refusals discipline.
+- Discovery surface — README docs table, llms.txt primary-docs
+  section, `.well-known/agents.json` `entry_points` all link the
+  two new files.
+
+### Added (onboarding + agent-SEO kit · productization)
+- **`QUICKSTART.md`** — 60-second onboarding. Three commands land a
+  running worker, enqueue an evolution, and show a gated diff.
+  Includes a troubleshooting table, three common follow-ups (point
+  at a real LLM, see the cost first, wire a signal source), and an
+  AI-agents section with the canonical entry points.
+- **`examples/demo_evolve_bot.sh`** — the "aha moment" in one
+  command. Spins the worker with a stubbed trainer, seeds v0.1.0,
+  enqueues an async evolution, polls until succeeded, persists
+  v0.1.1, and prints `/history` + `/diff`. End-to-end under 15
+  seconds. Cleans up its own tmp state on exit.
+- **`tools/agent-seo-kit/`** — the agent-SEO surface extracted as a
+  reusable kit. Templates for `AGENTS.md`, `llms.txt`,
+  `llms-full.txt`, `.well-known/{agents.json,openapi.yaml}`,
+  `robots.txt`, `CITATION.cff`, and JSON-LD snippets. Ships with
+  `scaffold.sh` (one-command drop-in with placeholder substitution)
+  and a `verify.sh` the target project can wire into its own CI.
+  Any OSS project copies it with one curl-pipe-bash.
+- README, llms.txt, and `.well-known/agents.json` link
+  QUICKSTART.md and the agent-SEO kit as first-class entry points.
+
+### Added (SQLite job queue · v0.2 feature complete)
+- **`worker/job_queue.py`** — stdlib `sqlite3` + WAL mode. Public API:
+  `open_db`, `enqueue`, `claim_next` (atomic via `BEGIN IMMEDIATE`),
+  `complete`, `get`, `list_jobs`, `recover_stale`, `delete_old`,
+  `counts_by_status`. Status machine: `queued` → `running` →
+  `succeeded`/`failed`/`timeout`.
+- **`POST /train` + `{"async": true}`** — enqueues the job, returns
+  202 + `job_id`. Default (no `async` flag) stays synchronous — strict
+  superset of the previous behavior, no breaking change.
+- **`GET /jobs`** — paged list with filters `status`, `bot_id`,
+  `limit` (max 200), `offset`. Includes a `counts` summary object.
+- **`GET /jobs/{id}`** — status + result + error for one job.
+- **Background drain workers** — `JOB_QUEUE_WORKERS` threads (default
+  2) poll the queue, run `/train` to completion, and write the
+  result back. Serialized on a shared connection lock so SQLite stays
+  happy; one claim-per-call enforced by the atomic `claim_next` txn.
+- **Crash recovery on startup** — rows left in `running` for more
+  than `JOB_QUEUE_STALE_SECONDS` (default 7200) are reset to
+  `queued` so the next worker startup drains them. Reported on the
+  `queue-ready` log line.
+- **Clean SIGTERM integration** — drain workers exit as soon as
+  `_shutting_down` flips; the main `_queue_wait_workers` step
+  blocks shutdown up to `SHUTDOWN_GRACE_SECONDS` so in-flight jobs
+  get to a terminal state before exit.
+- **Container defaults** — Dockerfile ships `JOB_QUEUE_DB=/data/jobs.db`
+  and `JOB_QUEUE_WORKERS=2`; `.env.example` documents all three env
+  vars.
+- **Tests** — `tests/test_job_queue.py` (19 cases): schema, enqueue,
+  idempotent enqueue on explicit job_id, atomic claim-next,
+  concurrent-claim no-double, complete success/failure, non-terminal
+  status rejected, list filters + ordering + counts, stale recovery,
+  persistence across reopen, `delete_old` keep-newest-N correctness.
+- **Verified live** — 3 async jobs enqueued, 2 queue workers picked
+  them up concurrently, all 3 landed in `succeeded` with the stubbed
+  trainer's `gate_passed=True` and `delta=0.15`. SIGTERM mid-flight
+  drained both workers cleanly.
+
+### Added (operational hygiene · v0.2 RRSS closure list)
+- **SIGTERM / SIGINT graceful drain** (Stabilize.1). Receiving a
+  shutdown signal flips a shared `_shutting_down` flag; new POSTs
+  get 503 with a `retry_after_s` hint while in-flight work finishes;
+  GETs on `/health`, `/metrics`, and the discovery paths stay answered
+  so orchestrators and agents can observe the drain. Bounded by
+  `SHUTDOWN_GRACE_SECONDS` (default 30, matches Kubernetes'
+  `terminationGracePeriodSeconds`). Logged as `signal-received` →
+  `worker-draining` → `worker-drained-clean` (or
+  `worker-forcing-shutdown` if the grace window ran out).
+- **`OUTPUT_ROOT` retention policy** (Stabilize.2). New module
+  `worker/retention.py` prunes training run dirs per bot, keeping the
+  most-recent `OUTPUT_RETENTION_PER_BOT` (default 30). Called
+  opportunistically after every `/train`, so disk stays bounded without
+  a cron. Pure stdlib, path-escape safe, idempotent, graceful (a single
+  delete failure doesn't abort the sweep). Pruning events emitted as
+  structured `retention` log lines with `pruned` / `failed` / `kept`
+  counts.
+- `.env.example` now documents `SHUTDOWN_GRACE_SECONDS` and
+  `OUTPUT_RETENTION_PER_BOT`.
+- Tests — `tests/test_retention.py` (8 cases): regex matching, keep-N
+  semantics, idempotency, per-bot isolation, unrelated-dir safety,
+  empty/missing root, report shape. `tests/test_shutdown.py` (8
+  cases): in-flight counter round-trip, concurrent-begin safety,
+  drain-flag flip, idempotent shutdown, grace-window drain-wait.
+
 ### Added (SHOWCASE — drop-in integration recipes)
 - **`SHOWCASE.md`** — eight runnable recipes any coding agent can
   lift verbatim into a customer app: OpenAI SDK (Python),

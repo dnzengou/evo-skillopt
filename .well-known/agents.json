@@ -137,6 +137,20 @@
       "auth": "bearer",
       "purpose": "pre-run token + dollar estimate for one evolution against a model + workload",
       "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/jobs",
+      "auth": "bearer",
+      "purpose": "list async-queue jobs (filters: status, bot_id, limit, offset); includes a counts-by-status summary",
+      "idempotent": true
+    },
+    {
+      "method": "GET",
+      "path": "/jobs/{id}",
+      "auth": "bearer",
+      "purpose": "status + result of one async /train job",
+      "idempotent": true
     }
   ],
   "concepts": {
@@ -159,6 +173,10 @@
     "gtm_playbook":    "./GTM.md",
     "ai_seo_notes":    "./docs/AI_SEO.md",
     "showcase":        "./SHOWCASE.md",
+    "quickstart":      "./QUICKSTART.md",
+    "case_studies":    "./docs/CASE_STUDIES.md",
+    "promo":           "./docs/PROMO.md",
+    "agent_seo_kit":   "./tools/agent-seo-kit/",
     "release_guide":   "./RELEASING.md",
     "worker_readme":   "./worker/README.md",
     "worker_source":   "./worker/skillopt_worker.py"

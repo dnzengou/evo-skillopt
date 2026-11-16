@@ -33,6 +33,10 @@ search and agent crawlers. Human readers can skip to "What this is".
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![CI](https://github.com/dnzengou/evo-skillopt/actions/workflows/ci.yml/badge.svg)](https://github.com/dnzengou/evo-skillopt/actions/workflows/ci.yml)
 
+**One minute to the "aha":** `bash examples/demo_evolve_bot.sh`
+→ watch a sample bot evolve, gate on an eval set, and surface the
+diff. See [`QUICKSTART.md`](./QUICKSTART.md).
+
 ---
 
 ## What this is
@@ -98,10 +102,14 @@ Homebrew, Docker, systemd, Fly.io, Kubernetes).
 
 | File                                                  | What                                                    |
 |-------------------------------------------------------|---------------------------------------------------------|
+| [`QUICKSTART.md`](./QUICKSTART.md)                    | 60-second onboarding — zero to first evolution          |
+| [`docs/CASE_STUDIES.md`](./docs/CASE_STUDIES.md)      | Four real-world illustrations of the pattern in production |
+| [`docs/PROMO.md`](./docs/PROMO.md)                    | Launch-ready social copy — X thread, LinkedIn, Show HN  |
 | [`INSTALL.md`](./INSTALL.md)                          | Standalone install — desktop, server, cloud, container  |
 | [`RELEASING.md`](./RELEASING.md)                      | Cut a new release (PyPI via OIDC + GitHub Release)      |
 | [`USE_CASES.md`](./USE_CASES.md)                      | Low-hanging-fruit patterns with ROI math                |
 | [`SHOWCASE.md`](./SHOWCASE.md)                        | Drop-in snippets — OpenAI, Anthropic, LangChain, LlamaIndex, CrewAI, Next.js, cron, cost-aware agent |
+| [`tools/agent-seo-kit/`](./tools/agent-seo-kit/)      | **Extractable agent-SEO kit** — drop the agents-detectable surface into any OSS project with one command |
 | [`GTM.md`](./GTM.md)                                  | Go-to-market in the agent era — playbook, channels, metrics |
 | [`EvoSkillOpt_Blueprint.md`](./EvoSkillOpt_Blueprint.md) | Living roadmap · capabilities · KPIs · v0.1 → v1.0   |
 | [`docs/CONCEPT.md`](./docs/CONCEPT.md)                | Core concept in depth                                   |

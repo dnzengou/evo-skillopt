@@ -156,7 +156,7 @@ Version-numbered. Tick capabilities as they ship.
 | ✅ Agent-discovery endpoints on the live worker                     | `GET /` card · `/.well-known/agents.json` · `/llms.txt` · `/openapi.yaml` |
 | ✅ Agent-era SEO surface (repo + docs site)                         | `AGENTS.md` · `llms.txt` · `llms-full.txt` · `.well-known/{agents.json,openapi.yaml}` · JSON-LD (SoftwareApplication + HowTo + FAQ) · `CITATION.cff` |
 | ✅ MkDocs → GitHub Pages publish workflow                           | `.github/workflows/publish-docs.yml` · serves agent-SEO files at `site_url` |
-| ⬜ Job queue (SQLite-backed) — concurrent bot evolution             | Priority queue; ~200 LOC |
+| ✅ Job queue (SQLite-backed) — concurrent bot evolution             | `worker/job_queue.py` · opt-in via `{"async": true}` on `POST /train` · N background threads (default 2, `JOB_QUEUE_WORKERS`) drain the queue · `GET /jobs` + `GET /jobs/{id}` · survives restart (WAL mode + stale-running recovery) · `POST /train` default stays synchronous |
 | ✅ Git-tracked skill versioning                                     | `worker/skill_store.py` · opt-in via `SKILL_STORE_USE_GIT=1` · shell-out `git` · commit SHA written into `history.json` · graceful fallback when git missing |
 | ✅ Cost accounting — planning-time estimator                        | `worker/cost_estimator.py` · `GET /cost/models` + `POST /cost/estimate` · pricing registry for 13 models · rollout/reflect/gate breakdown |
 | ⬜ Cost accounting — runtime token counter                          | Needs hooking the vendored SkillOpt LLM client; separate PR |
@@ -344,8 +344,8 @@ covers the union of those and closes the loop.
 
 Pre-v0.2 shipping hard-gate:
 
-- [ ] **Stabilize.1** — SIGTERM handler; drain in-flight jobs (~30 LOC)
-- [ ] **Stabilize.2** — `OUTPUT_ROOT` retention (keep last 30 per bot, ~50 LOC)
+- [x] **Stabilize.1** — SIGTERM / SIGINT drain: flips a flag, refuses new POSTs with 503, waits up to `SHUTDOWN_GRACE_SECONDS` (default 30) for in-flight work before exiting. GETs on `/health`, `/metrics`, and discovery paths stay answered during drain. `worker/skillopt_worker.py::_drain_and_shutdown` + `_install_signal_handlers`.
+- [x] **Stabilize.2** — `OUTPUT_ROOT` retention policy: `worker/retention.py::prune` keeps most-recent `OUTPUT_RETENTION_PER_BOT` (default 30) run dirs per bot, deletes older ones. Called opportunistically after every `/train`. Pure stdlib, path-escape safe, idempotent, graceful (single delete failure doesn't abort the sweep).
 - [ ] **Stabilize.3** — Per-tenant caps on skill history (~30 LOC)
 - [ ] **Robustify.1** — Retry on transient LLM 5xx / ECONNRESET (~80 LOC)
 - [ ] **Robustify.2** — Circuit breaker on provider (5 fails → trip; probe every 30 s) (~100 LOC)
@@ -381,6 +381,41 @@ decision made in a meeting, either update it same-day or don't make
 that decision.
 
 ---
+
+## Onboarding (shipped, this iteration)
+
+Zero-to-first-evolution in 60 seconds:
+
+```bash
+git clone https://github.com/dnzengou/evo-skillopt.git
+cd evo-skillopt && pip install -e '.[worker]'
+bash examples/demo_evolve_bot.sh
+```
+
+The demo spins the worker with a stubbed trainer, enqueues one
+evolution for a sample support bot, polls until the job succeeds,
+persists the accepted skill into the versioned store, and prints
+the `/history` + `/diff`. The full flow end-to-end in under 15
+seconds, no provider credentials required.
+
+Full walkthrough: [`QUICKSTART.md`](./QUICKSTART.md).
+
+## Agent-SEO kit (shipped, this iteration)
+
+The AI-era SEO surface we build for `evo-skillopt` is itself a
+reusable product. Any OSS project drops it in with:
+
+```bash
+PROJECT_NAME=my-tool PROJECT_OWNER=myuser PROJECT_REPO=my-tool \
+  bash /path/to/evo-skillopt/tools/agent-seo-kit/scaffold.sh
+bash .agent-seo-verify.sh
+```
+
+The kit lives at [`tools/agent-seo-kit/`](./tools/agent-seo-kit/)
+and ships template `AGENTS.md`, `llms.txt`, `llms-full.txt`,
+`agents.json`, `openapi.yaml`, `robots.txt`, `CITATION.cff`, and
+JSON-LD snippets, plus `scaffold.sh` + `verify.sh`. See
+[`docs/AI_SEO.md`](./docs/AI_SEO.md) for implementation notes.
 
 ## Agent-era GTM (new in v1.2)
 

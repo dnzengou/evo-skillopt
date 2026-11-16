@@ -1,0 +1,52 @@
+<!--
+Paste these three <script type="application/ld+json"> blocks near
+the top of your README.md (yes — Markdown passes HTML through, and
+GitHub renders this fine). AI answer engines parse the JSON-LD and
+use it in rich-result citations.
+
+Customize the keywords, HowTo steps, and FAQ entries per project.
+-->
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "{{project}}",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux, macOS, Windows",
+  "description": "{{description}}",
+  "programmingLanguage": "<fill in: Python / Go / TypeScript / …>",
+  "license": "https://opensource.org/licenses/MIT",
+  "codeRepository": "https://github.com/{{owner}}/{{repo}}",
+  "keywords": "<fill in: 3-5 comma-separated keywords>",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "Install {{project}}",
+  "totalTime": "PT5M",
+  "step": [
+    { "@type": "HowToStep", "position": 1, "name": "Clone", "text": "git clone https://github.com/{{owner}}/{{repo}}.git && cd {{repo}}" },
+    { "@type": "HowToStep", "position": 2, "name": "Install", "text": "<fill in: your real install command>" },
+    { "@type": "HowToStep", "position": 3, "name": "Run", "text": "<fill in: your real run command>" }
+  ]
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "What is {{project}}?",
+      "acceptedAnswer": { "@type": "Answer", "text": "{{description}}" }
+    }
+  ]
+}
+</script>

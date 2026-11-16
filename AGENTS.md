@@ -84,6 +84,8 @@ Machine-readable OpenAPI 3.1 contract: [`.well-known/openapi.yaml`](./.well-know
 | POST   | `/bots/{id}/rollback`          | bearer | no    | point `current` at an older version          |
 | GET    | `/cost/models`                 | none   | yes   | known-model price registry                   |
 | POST   | `/cost/estimate`               | bearer | yes   | pre-run token + dollar estimate              |
+| GET    | `/jobs`                        | bearer | yes   | list async-queue jobs (filter by status / bot_id) |
+| GET    | `/jobs/{id}`                   | bearer | yes   | status + result of one async job             |
 
 Bearer auth is required on POST endpoints when `WORKER_TOKEN` is set
 (dev mode = empty token = no auth). Discovery GETs are always

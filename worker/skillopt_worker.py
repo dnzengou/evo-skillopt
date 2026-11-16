@@ -29,11 +29,14 @@ to call the API safely — no out-of-band docs required.
 Zero external deps: stdlib only (http.server, json, subprocess).
 """
 
+import contextlib
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -43,11 +46,13 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 if str(_HERE) not in sys.path:
     sys.path.insert(0, str(_HERE))
+import job_queue  # noqa: E402
 import metrics as _metrics  # noqa: E402
 from arm_signals import Signal, compute_fitness  # noqa: E402
 from cascade import StageResult, evaluate_cascade  # noqa: E402
 from cost_estimator import Workload, estimate_cost, list_models  # noqa: E402
 from log import get_logger  # noqa: E402
+from retention import prune as prune_output_root  # noqa: E402
 from rrss_from_history import derive_inputs  # noqa: E402
 from rrss_gate import compute_rrss, rrss_gate  # noqa: E402
 from skill_store import (  # noqa: E402
@@ -61,6 +66,121 @@ from skill_store import rollback as rollback_skill  # noqa: E402
 
 log = get_logger("worker")
 _metrics.init()
+
+# ---------------------------------------------------------------------------
+# Shutdown coordination — SIGTERM / SIGINT stop accepting new work but
+# wait for in-flight requests to finish before the server exits. The
+# drain window is bounded by SHUTDOWN_GRACE_SECONDS to avoid holding a
+# container hostage on a wedged request.
+# ---------------------------------------------------------------------------
+
+SHUTDOWN_GRACE_SECONDS = float(os.environ.get("SHUTDOWN_GRACE_SECONDS", "30"))
+_shutting_down = threading.Event()
+_inflight_count = 0
+_inflight_lock = threading.Lock()
+
+# ---------------------------------------------------------------------------
+# Async job queue — opt-in via {"async": true} on POST /train. Default
+# behavior stays synchronous; the queue is a strict superset.
+# ---------------------------------------------------------------------------
+
+JOB_QUEUE_DB = os.environ.get("JOB_QUEUE_DB", "jobs.db")
+JOB_QUEUE_WORKERS = int(os.environ.get("JOB_QUEUE_WORKERS", "2"))
+JOB_QUEUE_POLL_SECONDS = float(os.environ.get("JOB_QUEUE_POLL_SECONDS", "1.0"))
+
+_queue_db: object = None  # set to a sqlite3.Connection in __main__
+_queue_db_lock = threading.Lock()
+_queue_threads: list[threading.Thread] = []
+
+
+def _queue_lookup() -> object | None:
+    """Return the shared queue connection (or None if queue disabled)."""
+    return _queue_db
+
+
+def _queue_init(db_path: str) -> None:
+    """Open the DB, recover stragglers, store the handle for routing."""
+    global _queue_db
+    _queue_db = job_queue.open_db(db_path)
+    recovered = job_queue.recover_stale(_queue_db)
+    log.info("queue-ready", extra={"db": db_path, "recovered": recovered})
+
+
+def _queue_worker_loop(worker_name: str) -> None:
+    """One drain loop. Exits when _shutting_down flips."""
+    db = _queue_db
+    assert db is not None
+    log.info("queue-worker-start", extra={"worker": worker_name})
+    while not _shutting_down.is_set():
+        try:
+            with _queue_db_lock:
+                job = job_queue.claim_next(db)
+        except Exception as exc:  # noqa: BLE001
+            log.warning("queue-claim-error", extra={"err": str(exc)})
+            time.sleep(JOB_QUEUE_POLL_SECONDS)
+            continue
+        if job is None:
+            _shutting_down.wait(timeout=JOB_QUEUE_POLL_SECONDS)
+            continue
+        job_id = job["id"]
+        payload = job.get("payload") or {}
+        bot_id = job.get("bot_id", "")
+        log.info("queue-running", extra={"job_id": job_id, "bot_id": bot_id,
+                                         "worker": worker_name})
+        try:
+            result = run_training(payload)
+            status = (
+                job_queue.STATUS_SUCCEEDED
+                if result.get("ok") else job_queue.STATUS_FAILED
+            )
+            err = None if result.get("ok") else str(result.get("error", ""))
+            with _queue_db_lock:
+                job_queue.complete(db, job_id, result=result,
+                                   error=err, status=status)
+        except Exception as exc:  # noqa: BLE001
+            log.exception("queue-job-crashed", extra={"job_id": job_id})
+            with _queue_db_lock:
+                job_queue.complete(
+                    db, job_id, result=None, error=str(exc),
+                    status=job_queue.STATUS_FAILED,
+                )
+        log.info("queue-done", extra={"job_id": job_id, "bot_id": bot_id})
+    log.info("queue-worker-stop", extra={"worker": worker_name})
+
+
+def _queue_start_workers(n: int) -> None:
+    """Spawn N background drain threads."""
+    for i in range(n):
+        name = f"queue-{i+1}"
+        t = threading.Thread(target=_queue_worker_loop, args=(name,),
+                             name=name, daemon=False)
+        t.start()
+        _queue_threads.append(t)
+
+
+def _queue_wait_workers(timeout: float) -> None:
+    """Give drain threads up to `timeout` seconds to exit."""
+    deadline = time.time() + timeout
+    for t in _queue_threads:
+        remaining = max(0.1, deadline - time.time())
+        t.join(timeout=remaining)
+
+
+def _inflight_begin() -> None:
+    global _inflight_count
+    with _inflight_lock:
+        _inflight_count += 1
+
+
+def _inflight_end() -> None:
+    global _inflight_count
+    with _inflight_lock:
+        _inflight_count = max(0, _inflight_count - 1)
+
+
+def _inflight_snapshot() -> int:
+    with _inflight_lock:
+        return _inflight_count
 
 WORKER_TOKEN = os.environ.get("WORKER_TOKEN", "").strip()
 OUTPUT_ROOT = Path(os.environ.get("OUTPUT_ROOT", "outputs/evo")).resolve()
@@ -114,10 +234,13 @@ SERVICE_CARD = {
         {"method": "POST", "path": "/bots/{id}/rollback", "auth": "bearer"},
         {"method": "GET", "path": "/cost/models", "auth": "none"},
         {"method": "POST", "path": "/cost/estimate", "auth": "bearer"},
+        {"method": "GET", "path": "/jobs", "auth": "bearer"},
+        {"method": "GET", "path": "/jobs/{id}", "auth": "bearer"},
     ],
 }
 
 _BOT_PATH_RE = re.compile(r"^/bots/([^/]+)/(skill|history|diff|rollback)$")
+_JOB_PATH_RE = re.compile(r"^/jobs/([a-zA-Z0-9_-]+)$")
 
 VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -204,6 +327,21 @@ def run_training(job: dict) -> dict:
     }
     _metrics.record_gate("base", base_passed)
     _metrics.record_training("accepted" if base_passed else "rejected", duration_s)
+
+    # Opportunistic retention — keep OUTPUT_ROOT bounded. Safe to run
+    # every /train: a no-op once the per-bot count sits at the cap.
+    try:
+        rep = prune_output_root(OUTPUT_ROOT)
+        if rep.pruned or rep.failed:
+            log.info(
+                "retention",
+                extra={
+                    "bot_id": bot_id, "pruned": rep.pruned,
+                    "failed": rep.failed, "kept": rep.kept,
+                },
+            )
+    except Exception as exc:  # noqa: BLE001
+        log.warning("retention-error", extra={"err": str(exc)})
 
     # Optional RRSS overlay: caller passes ``rrss`` payload with the four
     # axis inputs; the RRSS composite becomes the authoritative gate.
@@ -470,12 +608,25 @@ class Handler(BaseHTTPRequestHandler):
     def _begin(self) -> None:
         self._t0 = time.time()
         _metrics.inflight_inc(self.command or "?", self.path)
+        _inflight_begin()
 
     def _finish(self, code: int) -> None:
         dur = time.time() - getattr(self, "_t0", time.time())
         _metrics.inflight_dec(self.command or "?", self.path)
         _metrics.record_request(self.command or "?", self.path, code, dur)
+        _inflight_end()
         self._last_code = code
+
+    def _refuse_new_work(self) -> bool:
+        """When draining, refuse new mutating POSTs with 503 but still
+        answer /health, /metrics, and discovery GETs so operators and
+        agents can observe the shutdown."""
+        if not _shutting_down.is_set():
+            return False
+        if self.command == "GET":
+            return False
+        self._write(503, {"error": "shutting-down", "retry_after_s": 5})
+        return True
 
     # Inject around every call by pre/post-hooking do_GET / do_POST.
     def _parse_query(self) -> dict[str, str]:
@@ -600,10 +751,58 @@ class Handler(BaseHTTPRequestHandler):
         matched = self._match_bot_path()
         if matched and matched[1] in ("skill", "history", "diff"):
             return self._handle_bot_get(*matched)
+        if bare == "/jobs":
+            return self._handle_jobs_list()
+        job_match = _JOB_PATH_RE.match(bare)
+        if job_match:
+            return self._handle_job_get(job_match.group(1))
         if self._serve_discovery(bare):
             return getattr(self, "_last_code", 200)
         self._write(404, {"error": "not-found"})
         return 404
+
+    def _handle_jobs_list(self) -> int:
+        if not self._authed():
+            self._write(401, {"error": "unauthorized"})
+            return 401
+        db = _queue_lookup()
+        if db is None:
+            self._write(503, {"error": "queue-not-enabled"})
+            return 503
+        qs = self._parse_query()
+        status = qs.get("status")
+        bot = qs.get("bot_id")
+        try:
+            limit = int(qs.get("limit", "50"))
+            offset = int(qs.get("offset", "0"))
+        except ValueError:
+            self._write(400, {"error": "jobs-bad-limit-or-offset"})
+            return 400
+        if status and status not in job_queue.STATUSES:
+            self._write(400, {"error": f"jobs-bad-status: {status}"})
+            return 400
+        with _queue_db_lock:
+            rows = job_queue.list_jobs(db, status=status, bot_id=bot,
+                                       limit=limit, offset=offset)
+            counts = job_queue.counts_by_status(db)
+        self._write(200, {"ok": True, "counts": counts, "jobs": rows})
+        return 200
+
+    def _handle_job_get(self, job_id: str) -> int:
+        if not self._authed():
+            self._write(401, {"error": "unauthorized"})
+            return 401
+        db = _queue_lookup()
+        if db is None:
+            self._write(503, {"error": "queue-not-enabled"})
+            return 503
+        with _queue_db_lock:
+            row = job_queue.get(db, job_id)
+        if row is None:
+            self._write(404, {"error": "job-not-found", "job_id": job_id})
+            return 404
+        self._write(200, {"ok": True, "job": row})
+        return 200
 
     def _dispatch_POST(self) -> int:
         matched = self._match_bot_path()
@@ -650,6 +849,20 @@ class Handler(BaseHTTPRequestHandler):
                        "model": job.get("model")},
             )
             result = run_cost_estimate(job)
+        elif bare == "/train" and bool(job.get("async")):
+            # Enqueue for background processing; return 202 + job_id.
+            db = _queue_lookup()
+            if db is None:
+                self._write(503, {"error": "queue-not-enabled"})
+                return 503
+            payload = {k: v for k, v in job.items() if k != "async"}
+            with _queue_db_lock:
+                row = job_queue.enqueue(db, bot_id=str(payload.get("bot_id", "")),
+                                        payload=payload, job_id=job_id)
+            log.info("training-queued", extra={"bot_id": job["bot_id"],
+                                               "job_id": job_id})
+            self._write(202, {"ok": True, "job_id": job_id, "job": row})
+            return 202
         else:
             log.info(
                 "training",
@@ -674,7 +887,7 @@ class Handler(BaseHTTPRequestHandler):
         self._begin()
         self._last_code = 200
         try:
-            code = self._dispatch_POST()
+            code = 503 if self._refuse_new_work() else self._dispatch_POST()
         finally:
             self._finish(getattr(self, "_last_code", 500) if "code" not in locals() else code)
 
@@ -682,18 +895,63 @@ class Handler(BaseHTTPRequestHandler):
         log.info("access", extra={"peer": self.address_string(), "line": fmt % args})
 
 
+def _drain_and_shutdown(server: ThreadingHTTPServer) -> None:
+    """Flip the drain flag, wait for in-flight work, then shut the server."""
+    if _shutting_down.is_set():
+        return
+    _shutting_down.set()
+    log.info(
+        "worker-draining",
+        extra={"inflight": _inflight_snapshot(),
+               "grace_seconds": SHUTDOWN_GRACE_SECONDS},
+    )
+    deadline = time.time() + SHUTDOWN_GRACE_SECONDS
+    while time.time() < deadline:
+        if _inflight_snapshot() == 0:
+            break
+        time.sleep(0.2)
+    remaining = _inflight_snapshot()
+    if remaining > 0:
+        log.warning("worker-forcing-shutdown", extra={"inflight": remaining})
+    else:
+        log.info("worker-drained-clean")
+    # ThreadingHTTPServer.shutdown must be called from a different
+    # thread than serve_forever to avoid self-deadlock.
+    threading.Thread(target=server.shutdown, daemon=True).start()
+
+
+def _install_signal_handlers(server: ThreadingHTTPServer) -> None:
+    def _handler(signum, _frame):  # noqa: ANN001
+        log.info("signal-received", extra={"signum": signum})
+        _drain_and_shutdown(server)
+    # signal.signal only works in the main thread; tests may import
+    # this module from a non-main thread.
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        with contextlib.suppress(ValueError, OSError):
+            signal.signal(sig, _handler)
+
+
 if __name__ == "__main__":
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    _queue_init(JOB_QUEUE_DB)
+    _queue_start_workers(JOB_QUEUE_WORKERS)
     server = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
+    _install_signal_handlers(server)
     log.info(
         "worker-start",
         extra={
             "port": PORT, "output_root": str(OUTPUT_ROOT),
             "discovery_root": str(DISCOVERY_ROOT),
             "prometheus": _metrics.is_available(),
+            "shutdown_grace_s": SHUTDOWN_GRACE_SECONDS,
+            "queue_db": JOB_QUEUE_DB,
+            "queue_workers": JOB_QUEUE_WORKERS,
         },
     )
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        server.shutdown()
+        _drain_and_shutdown(server)
+    # After serve_forever returns, give queue workers up to the grace
+    # window to finish their current jobs.
+    _queue_wait_workers(SHUTDOWN_GRACE_SECONDS)

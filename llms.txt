@@ -24,6 +24,8 @@ points without crawling the whole repository.
 ## Primary docs
 
 - [README.md](./README.md): overview, quick start, architecture
+- [QUICKSTART.md](./QUICKSTART.md): 60-second onboarding ending in a
+  runnable demo that evolves a sample bot end-to-end
 - [EvoSkillOpt_Blueprint.md](./EvoSkillOpt_Blueprint.md): vision,
   roadmap, KPIs, use-case catalog (the master doc)
 - [INSTALL.md](./INSTALL.md): install paths — pip, Docker Compose, Fly.io
@@ -33,6 +35,10 @@ points without crawling the whole repository.
 - [docs/CONCEPT.md](./docs/CONCEPT.md): the skill-as-weights analogy
 - [docs/GLOSSARY.md](./docs/GLOSSARY.md): defined terms (Skill, Rollout,
   Gate, Evolution, Signal, Cadence, RRSS, Cascade, ARM)
+- [docs/CASE_STUDIES.md](./docs/CASE_STUDIES.md): four real-world
+  illustrations — kali-webOS (the EvoSkillOps meta-skill in action),
+  this repo's own agent-SEO-kit extraction, a customer-support bot,
+  and a docs assistant
 - [CONTRIBUTING.md](./CONTRIBUTING.md): how to contribute
 - [SECURITY.md](./SECURITY.md): vulnerability-report policy
 
@@ -61,6 +67,9 @@ Operational endpoints (bearer auth when `WORKER_TOKEN` is set):
 - `POST /bots/{slug}/rollback`      — rollback current to `?to=X.Y.Z`
 - `GET  /cost/models`               — known-model price registry (public)
 - `POST /cost/estimate`             — pre-run token + dollar estimate per workload
+- `GET  /jobs`                      — list async-queue jobs (filters: status, bot_id, limit, offset)
+- `GET  /jobs/{id}`                 — status + result of one async job
+- `POST /train` with `{"async": true}` — enqueue instead of running inline; returns 202 + job_id
 
 Machine-readable contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) (OpenAPI 3.1).
 Full endpoint docs: [worker/README.md](./worker/README.md).
@@ -80,3 +89,17 @@ Full endpoint docs: [worker/README.md](./worker/README.md).
 See [AGENTS.md](./AGENTS.md) for a short orientation written for AI
 coding agents — repo layout, how to run tests, what to leave untouched
 (the vendored `skillopt/` directory), and the commit/branch conventions.
+
+## Agent-SEO kit (extractable)
+
+The agent-SEO surface (`AGENTS.md`, `llms.txt`, `agents.json`,
+`openapi.yaml`, `robots.txt`, JSON-LD) that makes this project
+agents-detectable is shipped as a standalone kit at
+[`tools/agent-seo-kit/`](./tools/agent-seo-kit/). Any OSS project can
+drop it in with:
+
+    PROJECT_NAME=... PROJECT_OWNER=... PROJECT_REPO=... \
+      bash /path/to/evo-skillopt/tools/agent-seo-kit/scaffold.sh
+
+Followed by `bash .agent-seo-verify.sh` to confirm every artifact is
+present and well-formed.

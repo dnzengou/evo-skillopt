@@ -1,0 +1,33 @@
+# {{project}} — llms.txt
+
+> {{description}}
+
+This file follows the [llms.txt convention](https://llmstxt.org/) so AI
+agents and LLM-powered search can locate the project's canonical entry
+points without crawling the whole repository.
+
+## About
+
+- **One sentence.** {{description}}
+- **Repo.** https://github.com/{{owner}}/{{repo}}
+- **License.** <MIT / Apache-2.0 / …>
+
+## Primary docs
+
+- [README.md](./README.md): overview, quick start
+- [AGENTS.md](./AGENTS.md): orientation for AI coding agents
+- [CONTRIBUTING.md](./CONTRIBUTING.md): how to contribute (if present)
+
+## HTTP API (what the service exposes — if any)
+
+Machine-readable contract: [`.well-known/openapi.yaml`](./.well-known/openapi.yaml) (OpenAPI 3.1).
+Capabilities manifest: [`.well-known/agents.json`](./.well-known/agents.json).
+
+## Source entry points
+
+- (fill in per project — e.g. src/main.py, cmd/server/main.go)
+
+## For agents navigating this repo
+
+See [AGENTS.md](./AGENTS.md) for repo layout, test commands, and
+what to leave untouched.

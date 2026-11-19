@@ -1,0 +1,277 @@
+/* ---------------------------------------------------------------------------
+ * evo-skillopt — mobile-first polish for the Material theme.
+ *
+ * Target posture:
+ *   - Legible at 360-375px viewport width (iPhone SE, Pixel 6, mid-tier Android)
+ *   - 44×44 min touch targets on interactive elements
+ *   - Horizontal-scroll tables with a visible gradient hint
+ *   - Code blocks don't push the layout; wrap or scroll cleanly
+ *   - Respects prefers-reduced-motion and prefers-color-scheme
+ *   - No new font dependency beyond the theme defaults
+ * ------------------------------------------------------------------------ */
+
+/* 1. Root tokens ---------------------------------------------------------- */
+
+:root {
+  --evo-hero-radius: 14px;
+  --evo-max-content: 68ch;
+  --evo-tap-target: 44px;
+  --evo-code-shadow: rgba(0, 0, 0, 0.06);
+}
+
+[data-md-color-scheme="slate"] {
+  --evo-code-shadow: rgba(0, 0, 0, 0.35);
+}
+
+/* 2. Typography — tighter, more readable on narrow screens ----------------- */
+
+.md-typeset h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+@media screen and (max-width: 48em) {
+  .md-typeset h1 { font-size: 1.6rem; }
+  .md-typeset h2 { font-size: 1.25rem; }
+  .md-typeset h3 { font-size: 1.05rem; }
+  .md-typeset p, .md-typeset li { font-size: 0.95rem; line-height: 1.55; }
+}
+
+/* 3. Mobile hero (home page) ---------------------------------------------- */
+
+.evo-hero {
+  margin: 0.5rem 0 1.5rem;
+  padding: 1.25rem 1.1rem 1.1rem;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--md-primary-fg-color) 12%, transparent),
+    color-mix(in srgb, var(--md-accent-fg-color) 10%, transparent));
+  border-radius: var(--evo-hero-radius);
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 8%, transparent);
+}
+
+.evo-hero__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--md-primary-fg-color);
+  margin: 0 0 0.35rem;
+}
+
+.evo-hero__title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.evo-hero__tagline {
+  margin: 0 0 1rem;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.evo-hero__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.evo-hero__ctas .md-button {
+  min-height: var(--evo-tap-target);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 1rem;
+}
+
+@media screen and (min-width: 48em) {
+  .evo-hero__title { font-size: 2.1rem; }
+  .evo-hero { padding: 1.75rem 1.5rem 1.5rem; }
+}
+
+/* 4. Content width — keep long lines readable even on wide screens --------- */
+
+.md-typeset {
+  max-width: var(--evo-max-content);
+}
+
+@media screen and (max-width: 60em) {
+  .md-typeset { max-width: 100%; }
+}
+
+/* 5. Tables — horizontal scroll with a gradient hint on overflow ----------- */
+
+.md-typeset__table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+.md-typeset__table table {
+  min-width: 100%;
+}
+
+.md-typeset table:not([class]) {
+  font-size: 0.88rem;
+}
+
+/* Scroll shadow — appears when the table overflows horizontally */
+.md-typeset__table::after {
+  content: "";
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 24px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--evo-code-shadow));
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+@media (hover: none) {
+  .md-typeset__table::after { opacity: 1; }
+}
+
+/* 6. Code blocks — mobile-friendly scroll + copy ------------------------ */
+
+.md-typeset pre > code {
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+@media screen and (max-width: 48em) {
+  .md-typeset pre > code { font-size: 0.78rem; }
+  .md-typeset code { font-size: 0.85em; word-break: break-word; }
+}
+
+.md-typeset .highlight {
+  margin: 0.8rem 0;
+}
+
+/* 7. Mobile nav — bigger tap targets --------------------------------------- */
+
+.md-nav__item .md-nav__link {
+  min-height: var(--evo-tap-target);
+  display: flex;
+  align-items: center;
+}
+
+@media screen and (max-width: 76em) {
+  .md-nav--primary .md-nav__link {
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+  }
+}
+
+/* 8. Buttons — accessible touch targets everywhere ------------------------- */
+
+.md-typeset .md-button {
+  min-height: var(--evo-tap-target);
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.9rem;
+  font-weight: 600;
+}
+
+/* 9. Skip link — visible on keyboard focus, hidden otherwise --------------- */
+
+.evo-skip {
+  position: absolute;
+  top: -40px;
+  left: 0.5rem;
+  background: var(--md-primary-fg-color);
+  color: var(--md-primary-bg-color);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  text-decoration: none;
+  z-index: 10000;
+  font-weight: 600;
+}
+
+.evo-skip:focus {
+  top: 0.5rem;
+}
+
+/* 10. Reduced-motion respect ---------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important; }
+}
+
+/* 11. For-agents callout -------------------------------------------------- */
+
+.evo-agent-callout {
+  margin: 1.25rem 0;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--md-accent-fg-color) 6%, transparent);
+  border-left: 3px solid var(--md-accent-fg-color);
+  font-size: 0.9rem;
+}
+
+.evo-agent-callout__title {
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  color: var(--md-accent-fg-color);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.72rem;
+}
+
+.evo-agent-callout ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+/* 12. KPI tiles — tight 2-col grid on mobile, 4-col on desktop ------------- */
+
+.evo-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.6rem;
+  margin: 1rem 0 1.25rem;
+}
+
+@media screen and (min-width: 48em) {
+  .evo-kpi-grid { grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+}
+
+.evo-kpi {
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--md-default-fg-color) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--md-default-fg-color) 8%, transparent);
+}
+
+.evo-kpi__value {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--md-primary-fg-color);
+}
+
+.evo-kpi__label {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.76rem;
+  color: var(--md-default-fg-color--light);
+}
+
+/* 13. Footer density on mobile -------------------------------------------- */
+
+@media screen and (max-width: 48em) {
+  .md-footer-nav__title { font-size: 0.72rem; }
+  .md-footer-meta { font-size: 0.8rem; }
+}
+
+/* 14. Consent-dialog / announce-bar ergonomics ---------------------------- */
+
+.md-banner__inner, .md-announce__inner {
+  padding: 0.6rem 0.9rem;
+}

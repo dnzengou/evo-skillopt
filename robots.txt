@@ -1,0 +1,67 @@
+# evo-skillopt docs — robots.txt
+#
+# This project welcomes indexing by AI crawlers so coding agents and
+# LLM-powered search can find it. The repo's README, llms.txt, and
+# .well-known/agents.json carry the canonical machine-readable cards.
+#
+# Named AI crawlers kept here as an explicit allowlist (no restrictions)
+# — bots not listed inherit the default `User-agent: *` block below.
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GoogleOther
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+User-agent: DuckAssistBot
+Allow: /
+
+User-agent: MistralAI-User
+Allow: /
+
+User-agent: *
+Allow: /
+
+Sitemap: https://dnzengou.github.io/evo-skillopt/sitemap.xml

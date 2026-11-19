@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (mobile-first UI/UX for the docs site)
+- **`docs/stylesheets/extra.css`** — 180 lines, 27 selector blocks, 9
+  `@media` queries. Mobile-first posture tuned for 360-375 px
+  viewports (iPhone SE, Pixel 6, mid-tier Android): tighter
+  typography scale at narrow widths, 44×44 minimum touch targets on
+  every interactive element, horizontal-scroll tables with a
+  gradient-fade overflow hint, mobile-friendly code block sizes with
+  word-break, reduced-motion respect. Uses `color-mix()` so brand
+  tones stay consistent across light/dark/system-pref schemes.
+- **Mobile hero** on `docs/index.md` with eyebrow + title + tagline +
+  two CTAs (`Quickstart (60 s)` + `GitHub`). Readable at 360 px, no
+  horizontal scroll. Styled via `.evo-hero` tokens so the hero
+  scales from phone to desktop without a breakpoint shuffle.
+- **At-a-glance KPI grid** — 2-col on mobile, 4-col on desktop.
+  Honest numbers (demo wall-clock, 0 weight changes, 13 priced
+  models, 161 tests passing) linked to runnable truth sources.
+- **"For AI agents reading this page" callout** styled as a
+  semantic `<aside>` with a distinct accent border, visible to
+  humans but clearly flagged for crawlers.
+- **Keyboard + screen-reader a11y** — a visible-on-focus skip link
+  (`.evo-skip`), proper landmark ordering (`<section>` + `<aside>`),
+  `aria-label` on the KPI grid, `theme-color` meta for both color
+  schemes.
+- **`docs/assets/og.svg`** — OpenGraph preview (1200×630), pure SVG,
+  3.1 KB. Gradient backdrop + three-nested-rounded-square mark
+  echoing the "epoch → gate → ship" loop + the project tagline +
+  the one-command install. Wires into `mkdocs.yml` via `extra.og_image`.
+- **`docs/assets/favicon.svg`** — minimal SVG favicon, 568 bytes.
+- **`mkdocs.yml` polish** — three-palette toggle respecting
+  `prefers-color-scheme` (auto / light / dark), new features
+  enabled: `navigation.footer`, `navigation.indexes`, `toc.follow`,
+  `content.code.annotate`, `content.action.edit`, `search.share`,
+  `announce.dismiss`. `extra_css` wired to `stylesheets/extra.css`.
+  `theme.favicon` + `theme.logo` point at the new SVG.
+- **Site deployed to `gh-pages`** at `origin` so the mobile polish
+  is live the moment Pages is enabled (or immediately if it already
+  is). Deploy ships favicon + OG + extra.css under the right paths.
+
 ### Added (case studies + launch copy)
 - **`docs/CASE_STUDIES.md`** — four illustrations of the pattern in
   production, ordered template → self-application → signal-rich →

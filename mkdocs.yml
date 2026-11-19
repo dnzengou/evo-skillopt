@@ -11,6 +11,7 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/dnzengou/evo-skillopt
+      name: evo-skillopt on GitHub
   tags:
     LLM: llm
     Agent: agent
@@ -18,8 +19,13 @@ extra:
     RRSS: rrss
     Cascade: cascade
     ARM: arm
+  # OpenGraph preview — social-crawler fallback. Resolves at /assets/og.svg
+  # on the published site. Material also exposes site_url for og:url.
+  og_image: assets/og.svg
+  og_image_type: image/svg+xml
 
-extra_css: []
+extra_css:
+  - stylesheets/extra.css
 
 # Agent-crawl aids served from the docs site root.
 # Place matching copies in docs/ (sibling to index.md) and mkdocs will
@@ -28,29 +34,49 @@ extra_css: []
 
 theme:
   name: material
+  favicon: assets/favicon.svg
+  logo: assets/favicon.svg
   palette:
-    - scheme: default
+    # Respect the viewer's system preference by default; the toggle buttons
+    # below let them override. `media` queries work on all modern browsers.
+    - media: "(prefers-color-scheme)"
+      scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
       primary: indigo
       accent: deep purple
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    - scheme: slate
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
       primary: indigo
       accent: deep purple
       toggle:
         icon: material/brightness-4
-        name: Switch to light mode
+        name: Switch to system preference
   features:
     - navigation.instant
     - navigation.tracking
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
     - content.code.copy
+    - content.code.annotate
     - content.tabs.link
+    - content.action.edit
     - search.suggest
     - search.highlight
+    - search.share
+    - announce.dismiss
   icon:
     repo: fontawesome/brands/github
   font:

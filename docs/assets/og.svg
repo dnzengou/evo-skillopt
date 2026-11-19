@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img"
+     aria-label="evo-skillopt — text-space skill optimization for production LLM agents">
+  <title>evo-skillopt</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"  stop-color="#1e293b"/>
+      <stop offset="60%" stop-color="#3730a3"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="markG" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fbcfe8"/>
+      <stop offset="100%" stop-color="#a5b4fc"/>
+    </linearGradient>
+    <style>
+      .title { font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+               font-weight: 800; fill: #ffffff; letter-spacing: -0.02em; }
+      .tag   { font-family: ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+               font-weight: 500; fill: #e5e7eb; }
+      .meta  { font-family: ui-monospace, "JetBrains Mono", Consolas, monospace;
+               font-weight: 500; fill: #c7d2fe; letter-spacing: 0.04em; }
+      .kbd   { font-family: ui-monospace, "JetBrains Mono", Consolas, monospace;
+               font-weight: 600; fill: #ffffff; }
+    </style>
+  </defs>
+
+  <!-- backdrop -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- soft bokeh -->
+  <circle cx="1050" cy="110" r="220" fill="#ffffff" opacity="0.06"/>
+  <circle cx="160"  cy="520" r="180" fill="#ffffff" opacity="0.05"/>
+
+  <!-- mark: three nested rounded squares echoing the "epoch → gate → ship" loop -->
+  <g transform="translate(90, 140)">
+    <rect x="0"  y="0"  width="112" height="112" rx="22" fill="url(#markG)" opacity="0.35"/>
+    <rect x="30" y="22" width="96"  height="96"  rx="20" fill="url(#markG)" opacity="0.6"/>
+    <rect x="60" y="44" width="80"  height="80"  rx="18" fill="url(#markG)"/>
+    <!-- a small "diff" glyph inside the innermost square -->
+    <g transform="translate(78, 60)" fill="#1e293b">
+      <rect x="0"  y="10" width="30" height="5" rx="2.5" opacity="0.7"/>
+      <rect x="0"  y="22" width="46" height="5" rx="2.5"/>
+      <rect x="0"  y="34" width="22" height="5" rx="2.5" opacity="0.4"/>
+    </g>
+  </g>
+
+  <!-- title -->
+  <text x="90" y="340" class="title" font-size="92">evo-skillopt</text>
+
+  <!-- tagline, up to two lines, kept inside a readable column -->
+  <text x="90" y="400" class="tag" font-size="30">
+    Train your agent's Markdown skill file like a neural
+  </text>
+  <text x="90" y="438" class="tag" font-size="30">
+    network — epochs, gates, git-tracked history.
+  </text>
+
+  <!-- meta footer -->
+  <text x="90" y="560" class="meta" font-size="22">
+    MIT · callable over HTTP · any provider · zero weight changes
+  </text>
+  <text x="90" y="594" class="kbd" font-size="22">
+    $ bash examples/demo_evolve_bot.sh
+  </text>
+
+  <!-- top-right domain badge -->
+  <g transform="translate(1030, 60)">
+    <rect x="0" y="0" width="140" height="40" rx="20" fill="#ffffff" opacity="0.12"/>
+    <text x="70" y="26" text-anchor="middle" class="kbd" font-size="18">github.com</text>
+  </g>
+</svg>
